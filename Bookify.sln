@@ -16,6 +16,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{22A1C873
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bookify.Tests", "Bookify.Tests\Bookify.Tests.csproj", "{BCC9131B-136A-442E-8ECD-DBBF79E6E407}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src (2)", "src (2)", "{53A5857E-1D05-4C9B-B3E7-8CA33A7F053E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests (2)", "tests (2)", "{BA40D2C9-1DEE-44C8-B108-2D8A142F50D1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -1,10 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Read frontend URL from appsettings
+// Read frontend URL from appsettings.json
 var frontendUrl = builder.Configuration["Frontend:Url"];
 
 // Add services to the container.
@@ -13,12 +12,13 @@ builder.Services.AddControllers();               // Add Controllers
 builder.Services.AddEndpointsApiExplorer();      // Needed for Swagger
 
 // Register DbContext with Connection String from appsettings.json
-//builder.Services.AddDbContext<AppDbContext>(options =>
-//    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Uncomment and replace AppDbContext with your context
+// builder.Services.AddDbContext<AppDbContext>(options =>
+//     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register your services here (DI)
 
-// Configure Serilog (from dev branch)
+// Configure Serilog
 builder.Host.UseSerilog((context, configuration) =>
 	configuration.ReadFrom.Configuration(context.Configuration));
 
@@ -26,11 +26,10 @@ builder.Host.UseSerilog((context, configuration) =>
 // using value from appsettings.json
 builder.Services.AddCors(options =>
 {
-	options.AddPolicy("AllowFrontend",
-		policy => policy
-			.WithOrigins(frontendUrl!)
-			.AllowAnyHeader()
-			.AllowAnyMethod());
+	options.AddPolicy("AllowFrontend", policy =>
+		policy.WithOrigins(frontendUrl!)
+			  .AllowAnyHeader()
+			  .AllowAnyMethod());
 });
 
 var app = builder.Build();
@@ -54,10 +53,11 @@ app.UseAuthorization();
 // Map Controllers 
 app.MapControllers();
 
-using var scope = app.Services.CreateScope();
-var services = scope.ServiceProvider;
-//var context = services.GetRequiredService<AppDbContext>();
-//context.Database.EnsureCreated();
-//context.Database.Migrate();
+// Database initialization (optional)
+// using var scope = app.Services.CreateScope();
+// var services = scope.ServiceProvider;
+// var context = services.GetRequiredService<AppDbContext>();
+// context.Database.EnsureCreated();
+// context.Database.Migrate();
 
 app.Run();

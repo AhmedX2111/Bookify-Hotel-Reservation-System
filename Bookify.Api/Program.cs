@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32;
+using Serilog;
 using System;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +21,9 @@ builder.Services.AddEndpointsApiExplorer();      // Needed for Swagger
 
 
 
+builder.Host.UseSerilog((context, configuration) =>
+configuration.ReadFrom.Configuration(context.Configuration));
+
 // Add CORS policy for frontend (Angular/React/...)
 builder.Services.AddCors(options =>
 {
@@ -38,6 +42,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 

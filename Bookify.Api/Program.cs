@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32;
+using Serilog;
 using System;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,20 +15,22 @@ builder.Services.AddEndpointsApiExplorer();      // Needed for Swagger
 
 // Register DbContext with Connection String from appsettings.json
 //builder.Services.AddDbContext<AppDbContext>(options =>
-//	options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+//    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register your services here (DI)
 
-
+// Configure Serilog (from dev branch)
+builder.Host.UseSerilog((context, configuration) =>
+    configuration.ReadFrom.Configuration(context.Configuration));
 
 // Add CORS policy for frontend (Angular/React/...)
 builder.Services.AddCors(options =>
 {
-	options.AddPolicy("AllowFrontend",
-		policy => policy
-			.WithOrigins(frontendUrl!)  // using value from appsettings.json
-			.AllowAnyHeader()
-			.AllowAnyMethod());
+    options.AddPolicy("AllowFrontend",
+        policy => policy
+            .WithOrigins(frontendUrl!)  // using value from appsettings.json
+            .AllowAnyHeader()
+            .AllowAnyMethod());
 });
 
 var app = builder.Build();
@@ -38,6 +41,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+// Enable Serilog request logging (from dev branch)
+app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 

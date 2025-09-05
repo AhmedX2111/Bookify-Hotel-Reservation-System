@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Bookify.Api\Bookify.Api.csproj" />
-    <ProjectReference Include="..\Bookify.Application\Bookify.Application.Business.csproj" />
+    <ProjectReference Include="..\Bookify.Application\Bookify.Services.csproj" />
     <ProjectReference Include="..\Bookify.Infrastructure\Bookify.Infrastructure.Data.csproj" />
   </ItemGroup>
 

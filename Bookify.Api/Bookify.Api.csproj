@@ -8,13 +8,14 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.8" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Bookify.Application\Bookify.Application.Business.csproj" />
-    <ProjectReference Include="..\Bookify.Infrastructure\Bookify.Infrastructure.Data.csproj" />
+    <ProjectReference Include="..\Bookify.Application\Bookify.Services.csproj" />
+    <ProjectReference Include="..\Bookify.Shared\Bookify.Shared.csproj" />
   </ItemGroup>
 
 </Project>

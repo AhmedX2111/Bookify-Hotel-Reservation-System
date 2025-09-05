@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<ItemGroup>
+		<!-- Keep both project references if you still need Domain + Services -->
 		<ProjectReference Include="..\Bookify.Application\Bookify.Application.Business.csproj" />
 		<ProjectReference Include="..\Bookify.Domain\Bookify.Domain.csproj" />
+		<ProjectReference Include="..\Bookify.Application\Bookify.Services.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -4,7 +4,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bookify.Api", "Bookify.Api\Bookify.Api.csproj", "{7DAAC7C7-2328-4415-9299-6033CFA85494}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bookify.Application.Business", "Bookify.Application\Bookify.Application.Business.csproj", "{C1AB4DAC-A1E1-4B30-AEC8-E1F6A99A545A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bookify.Services", "Bookify.Application\Bookify.Services.csproj", "{C1AB4DAC-A1E1-4B30-AEC8-E1F6A99A545A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bookify.Infrastructure.Data", "Bookify.Infrastructure\Bookify.Infrastructure.Data.csproj", "{4AF76F8F-2400-425D-A6C8-DCC978DB4127}"
 EndProject

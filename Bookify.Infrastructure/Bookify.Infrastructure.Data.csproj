@@ -1,7 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Bookify.Application\Bookify.Services.csproj" />
+    <ProjectReference Include="..\Bookify.Application\Bookify.Application.Business.csproj" />
+    <ProjectReference Include="..\Bookify.Domain\Bookify.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

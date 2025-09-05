@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<ItemGroup>
-		<!-- Keep both project references if you still need Domain + Services -->
+		<!-- Keep Domain & Business references if they are needed for EF models -->
 		<ProjectReference Include="..\Bookify.Application\Bookify.Application.Business.csproj" />
 		<ProjectReference Include="..\Bookify.Domain\Bookify.Domain.csproj" />
-		<ProjectReference Include="..\Bookify.Application\Bookify.Services.csproj" />
+		<!-- ❌ Removed Services reference to break the cycle -->
 	</ItemGroup>
 
 	<ItemGroup>

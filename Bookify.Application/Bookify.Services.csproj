@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="15.0.1" />
@@ -8,6 +8,14 @@
 
   <ItemGroup>
     <Folder Include="Mappings\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference Shared Project for common DTOs/utilities -->
+    <ProjectReference Include="..\Bookify.Shared\Bookify.Shared.csproj" />
+
+    <!-- Reference Infrastructure for data access -->
+    <ProjectReference Include="..\Bookify.Infrastructure\Bookify.Infrastructure.Data.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

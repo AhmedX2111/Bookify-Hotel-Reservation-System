@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Bookify.Api\Bookify.Api.csproj" />
-    <ProjectReference Include="..\Bookify.Application\Bookify.Application.Business.csproj" />
-    <ProjectReference Include="..\Bookify.Infrastructure\Bookify.Infrastructure.Data.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Bookify.Api\Bookify.Api.csproj" />
+		<ProjectReference Include="..\Bookify.Application\Bookify.Application.Business.csproj" />
+		<ProjectReference Include="..\Bookify.Infrastructure\Bookify.Infrastructure.Data.csproj" />
+	</ItemGroup>
 
 </Project>

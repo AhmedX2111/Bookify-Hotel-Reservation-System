@@ -1,11 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Win32;
 using Serilog;
-using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Read frontend URL from appsettings
+// Read frontend URL from appsettings.json
 var frontendUrl = builder.Configuration["Frontend:Url"];
 
 // Add services to the container.
@@ -14,23 +12,24 @@ builder.Services.AddControllers();               // Add Controllers
 builder.Services.AddEndpointsApiExplorer();      // Needed for Swagger
 
 // Register DbContext with Connection String from appsettings.json
-//builder.Services.AddDbContext<AppDbContext>(options =>
-//    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Uncomment and replace AppDbContext with your context
+// builder.Services.AddDbContext<AppDbContext>(options =>
+//     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register your services here (DI)
 
-// Configure Serilog (from dev branch)
+// Configure Serilog
 builder.Host.UseSerilog((context, configuration) =>
-    configuration.ReadFrom.Configuration(context.Configuration));
+	configuration.ReadFrom.Configuration(context.Configuration));
 
 // Add CORS policy for frontend (Angular/React/...)
+// using value from appsettings.json
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        policy => policy
-            .WithOrigins(frontendUrl!)  // using value from appsettings.json
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+	options.AddPolicy("AllowFrontend", policy =>
+		policy.WithOrigins(frontendUrl!)
+			  .AllowAnyHeader()
+			  .AllowAnyMethod());
 });
 
 var app = builder.Build();
@@ -38,10 +37,10 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+	app.MapOpenApi();
 }
 
-// Enable Serilog request logging (from dev branch)
+// Enable Serilog request logging
 app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
@@ -54,10 +53,11 @@ app.UseAuthorization();
 // Map Controllers 
 app.MapControllers();
 
-using var scope = app.Services.CreateScope();
-var services = scope.ServiceProvider;
-//var context = services.GetRequiredService<AppDbContext>();
-//context.Database.EnsureCreated();
-//context.Database.Migrate();
+// Database initialization (optional)
+// using var scope = app.Services.CreateScope();
+// var services = scope.ServiceProvider;
+// var context = services.GetRequiredService<AppDbContext>();
+// context.Database.EnsureCreated();
+// context.Database.Migrate();
 
 app.Run();

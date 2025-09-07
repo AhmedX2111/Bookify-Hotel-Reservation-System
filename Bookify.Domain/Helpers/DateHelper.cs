@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Bookify.Domain.Entities
+namespace Bookify.Shared.Helpers
 {
-	public class Room
+	public class DateHelper
 	{
 	}
 }

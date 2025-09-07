@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Bookify.Domain.Enums
+namespace Bookify.Shared.Exceptions
 {
-	public class BookingStatus
+	public class ValidationException
 	{
 	}
 }

@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Bookify.Domain.Entities
+namespace Bookify.Shared.Exceptions
 {
-	public class Booking
+	public class NotFoundException
 	{
 	}
 }

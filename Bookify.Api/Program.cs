@@ -23,6 +23,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Swagger/OpenAPI configuration
 builder.Services.AddSwaggerGen(c =>
 {
 	c.SwaggerDoc("v1", new OpenApiInfo { Title = "Bookify API", Version = "v1" });
@@ -30,7 +32,7 @@ builder.Services.AddSwaggerGen(c =>
 	// Add JWT Bearer authentication to Swagger
 	c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
 	{
-		Description = "JWT Authorization header using the Bearer scheme",
+		Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
 		Name = "Authorization",
 		In = ParameterLocation.Header,
 		Type = SecuritySchemeType.ApiKey,

@@ -6,14 +6,12 @@ using System.Threading.Tasks;
 
 namespace Bookify.Application.Business.Dtos.Rooms
 {
-    public class RoomDto
-    {
+	public class RoomTypeDto
+	{
 		public int Id { get; set; }
-		public string RoomNumber { get; set; } = null!;
-		public string RoomTypeName { get; set; } = null!;
+		public string Name { get; set; } = null!;
 		public string Description { get; set; } = null!;
 		public decimal PricePerNight { get; set; }
 		public int Capacity { get; set; }
-		public bool IsAvailable { get; set; }
 	}
 }

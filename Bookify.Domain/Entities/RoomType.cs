@@ -13,6 +13,7 @@ namespace Bookify.Domain.Entities
 		public string Description { get; set; } = default!;
 		public decimal PricePerNight { get; set; }
 		public int Capacity { get; set; }
+		public string? ImageUrl { get; set; }
 
 		// Navigation properties
 		public ICollection<Room> Rooms { get; set; } = new List<Room>();

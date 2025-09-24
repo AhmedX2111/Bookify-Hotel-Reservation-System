@@ -67,10 +67,12 @@ namespace Bookify.Api.Controllers
 					return BadRequest(ModelState);
 				}
 
-				if (!request.IsValid())
+				var errors = request.GetValidationErrors();
+				if (errors.Any())
 				{
-					return BadRequest("Invalid search parameters. Please check your input.");
+					return BadRequest(new { Message = "Invalid search parameters.", Errors = errors });
 				}
+
 
 				var result = await _roomService.SearchAvailableRoomsAsync(request, cancellationToken);
 				return Ok(result);

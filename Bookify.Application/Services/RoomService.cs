@@ -101,7 +101,8 @@ namespace Bookify.Application.Business.Services
 				Name = rt.Name,
 				Description = rt.Description,
 				PricePerNight = rt.PricePerNight,
-				Capacity = rt.Capacity
+				Capacity = rt.Capacity,
+				ImageUrl = rt.ImageUrl
 			});
 		}
 	}

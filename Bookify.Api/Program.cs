@@ -153,6 +153,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("Frontend");
 
+app.UseStaticFiles();
+
 app.UseHttpsRedirection();
 
 // Authentication & Authorization middleware

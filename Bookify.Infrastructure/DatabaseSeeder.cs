@@ -66,40 +66,83 @@ namespace Bookify.Infrastructure.Data
 
 			var roomTypes = new[]
 			{
-				new RoomType { Name = "Standard Room", Description = "Comfortable room with basic amenities", PricePerNight = 99.99m, Capacity = 2 },
-				new RoomType { Name = "Deluxe Room", Description = "Spacious room with premium amenities", PricePerNight = 149.99m, Capacity = 3 },
-				new RoomType { Name = "Suite", Description = "Luxurious suite with separate living area", PricePerNight = 249.99m, Capacity = 4 },
-				new RoomType { Name = "Family Room", Description = "Perfect for families with children", PricePerNight = 199.99m, Capacity = 5 },
-				new RoomType { Name = "Executive Suite", Description = "Premium suite for business travelers", PricePerNight = 299.99m, Capacity = 2 }
+				new RoomType
+		{
+			Name = "Standard Room",
+			Description = "Comfortable room with basic amenities",
+			PricePerNight = 99.99m,
+			Capacity = 2,
+			ImageUrl = "/images/rooms/standard.jpeg"
+		},
+		new RoomType
+		{
+			Name = "Deluxe Room",
+			Description = "Spacious room with premium amenities",
+			PricePerNight = 149.99m,
+			Capacity = 3,
+			ImageUrl = "/images/rooms/deluxe.jpeg"
+		},
+		new RoomType
+		{
+			Name = "Suite",
+			Description = "Luxurious suite with separate living area",
+			PricePerNight = 249.99m,
+			Capacity = 4,
+			ImageUrl = "/images/rooms/suite.jpg"
+		},
+		new RoomType
+		{
+			Name = "Family Room",
+			Description = "Perfect for families with children",
+			PricePerNight = 199.99m,
+			Capacity = 5,
+			ImageUrl = "/images/rooms/family.jpg"
+		},
+		new RoomType
+		{
+			Name = "Executive Suite",
+			Description = "Premium suite for business travelers",
+			PricePerNight = 299.99m,
+			Capacity = 2,
+			ImageUrl = "/images/rooms/executive.jpg"
+		}
 			};
 
 			await context.RoomTypes.AddRangeAsync(roomTypes);
 			await context.SaveChangesAsync();
-			_logger.LogInformation("Seeded {Count} room types.", roomTypes.Length);
+			_logger.LogInformation("Seeded {Count} room types with images.", roomTypes.Length);
 		}
 
 		private async Task SeedRoomsAsync(BookifyDbContext context)
 		{
 			if (await context.Rooms.AnyAsync()) return;
 
+			var roomTypes = await context.RoomTypes.ToListAsync();
+
+			var standard = roomTypes.First(rt => rt.Name == "Standard Room").Id;
+			var deluxe = roomTypes.First(rt => rt.Name == "Deluxe Room").Id;
+			var suite = roomTypes.First(rt => rt.Name == "Suite").Id;
+			var family = roomTypes.First(rt => rt.Name == "Family Room").Id;
+			var executive = roomTypes.First(rt => rt.Name == "Executive Suite").Id;
+
 			var rooms = new[]
 			{
-				new Room { RoomNumber = "101", RoomTypeId = 1, IsAvailable = true },
-				new Room { RoomNumber = "102", RoomTypeId = 1, IsAvailable = true },
-				new Room { RoomNumber = "103", RoomTypeId = 1, IsAvailable = true },
-				new Room { RoomNumber = "104", RoomTypeId = 1, IsAvailable = true },
+				new Room { RoomNumber = "101", RoomTypeId = standard, IsAvailable = true },
+				new Room { RoomNumber = "102", RoomTypeId = standard, IsAvailable = true },
+				new Room { RoomNumber = "103", RoomTypeId = standard, IsAvailable = true },
+				new Room { RoomNumber = "104", RoomTypeId = standard, IsAvailable = true },
 
-				new Room { RoomNumber = "201", RoomTypeId = 2, IsAvailable = true },
-				new Room { RoomNumber = "202", RoomTypeId = 2, IsAvailable = true },
+				new Room { RoomNumber = "201", RoomTypeId = deluxe, IsAvailable = true },
+				new Room { RoomNumber = "202", RoomTypeId = deluxe, IsAvailable = true },
 
-				new Room { RoomNumber = "301", RoomTypeId = 3, IsAvailable = true },
-				new Room { RoomNumber = "302", RoomTypeId = 3, IsAvailable = true },
+				new Room { RoomNumber = "301", RoomTypeId = suite, IsAvailable = true },
+				new Room { RoomNumber = "302", RoomTypeId = suite, IsAvailable = true },
 
-				new Room { RoomNumber = "401", RoomTypeId = 4, IsAvailable = true },
-				new Room { RoomNumber = "402", RoomTypeId = 4, IsAvailable = true },
+				new Room { RoomNumber = "401", RoomTypeId = family, IsAvailable = true },
+				new Room { RoomNumber = "402", RoomTypeId = family, IsAvailable = true },
 
-				new Room { RoomNumber = "501", RoomTypeId = 5, IsAvailable = true },
-				new Room { RoomNumber = "502", RoomTypeId = 5, IsAvailable = true }
+				new Room { RoomNumber = "501", RoomTypeId = executive, IsAvailable = true },
+				new Room { RoomNumber = "502", RoomTypeId = executive, IsAvailable = true }
 			};
 
 			await context.Rooms.AddRangeAsync(rooms);
@@ -127,13 +170,15 @@ namespace Bookify.Infrastructure.Data
 			{
 				await userManager.AddToRoleAsync(adminUser, "Admin");
 				_logger.LogInformation("Created admin user: admin@bookify.com");
+
+				// fetch persisted user again to ensure it exists in DB
+				return await userManager.FindByEmailAsync("admin@bookify.com");
 			}
 			else
 			{
 				_logger.LogError("Failed to create admin user: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+				throw new Exception("Admin user seeding failed."); // fail early
 			}
-
-			return adminUser;
 		}
 
 		private async Task SeedBookingsAsync(BookifyDbContext context, User admin)

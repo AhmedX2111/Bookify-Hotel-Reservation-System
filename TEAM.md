@@ -83,6 +83,7 @@ Booking Conversion Rate: Percentage of site visitors who complete a reservation.
 Bug Resolution Time: Average time to resolve critical bugs after identification.
 
 Instructor
+Hesham Mohamed
 Project Files
 You can find the full project files here:
 (https://github.com/AhmedX2111/Bookify-Hotel-Reservation-System)

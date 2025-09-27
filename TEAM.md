@@ -63,9 +63,9 @@ Preparation of final presentation.
 Roles & Responsibilities
 Ahmed Khaled (Project Leader): Overall project coordination, timeline management, client communication, and risk mitigation.
 
-Frontend Team (Basant, Salma, Abdullah, Ahmed, Mohab, Noha): Designing and implementing the user interface using modern web technologies (e.g., React, Angular, HTML/CSS/JS). Ensuring a responsive and intuitive user experience.
+Frontend Team (Basant, Salma, Abdullah, Ahmed, Mohab, Noha): Designing and implementing the user interface using modern web technologies (Angular, HTML/CSS/JS). Ensuring a responsive and intuitive user experience.
 
-Backend Team (Basant, Salma, Abdullah, Ahmed, Mohab, Noha): Developing the server-side logic, RESTful APIs, and application infrastructure using frameworks (e.g., Node.js, Django, Spring Boot).
+Backend Team (Basant, Salma, Abdullah, Ahmed, Mohab, Noha): Developing the server-side logic, RESTful APIs, and application infrastructure using frameworks (Asp.Net Api).
 
 Database & DevOps Team (Mohab, Basant, Ahmed): Designing the database schema, ensuring data integrity, managing deployments, and maintaining the development/production environments.
 

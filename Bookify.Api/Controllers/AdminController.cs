@@ -1,5 +1,4 @@
-﻿// Bookify-Hotel-Reservation-System-master/Bookify.Api/Controllers/AdminController.cs
-using Bookify.Application.Business.Dtos.Bookings; // Added
+﻿using Bookify.Application.Business.Dtos.Bookings; // Added
 using Bookify.Application.Business.Dtos.Rooms; // Added
 using Bookify.Application.Business.Interfaces.Services; // Added
 using Microsoft.AspNetCore.Authorization; // Added
@@ -14,7 +13,7 @@ namespace Bookify.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    //[Authorize(Roles = "Admin")] // Restrict access to Admin role
+    [Authorize(Roles = "Admin")] // Restrict access to Admin role
     public class AdminController : ControllerBase
     {
         private readonly IRoomService _roomService;

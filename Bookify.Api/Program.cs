@@ -1,5 +1,4 @@
-﻿// Bookify-Hotel-Reservation-System-master/Bookify.Api/Program.cs
-using Bookify.Application.Business.Interfaces.Data;
+﻿using Bookify.Application.Business.Interfaces.Data;
 using Bookify.Application.Business.Interfaces.Services;
 using Bookify.Application.Business.Mappings; // Added for BookingProfile
 using Bookify.Application.Business.Services; // Added
@@ -8,7 +7,6 @@ using Bookify.Infrastructure.Data;
 using Bookify.Infrastructure.Data.Data.Context;
 using Bookify.Infrastructure.Data.Data.Repositories;
 using Bookify.Infrastructure.Data.Data.UnitOfWork;
-using Bookify.Infrastructure.Data.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

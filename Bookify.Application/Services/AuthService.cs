@@ -1,5 +1,4 @@
 ﻿using Bookify.Application.Business.Dtos.Auth;
-using Bookify.Application.Business.Dtos.Users;
 using Bookify.Application.Business.Interfaces.Services;
 using Bookify.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
@@ -16,7 +15,7 @@ using JwtRegisteredClaimNames = Microsoft.IdentityModel.JsonWebTokens.JwtRegiste
 
 
 
-namespace Bookify.Application.Business.Services
+namespace Bookify.Infrastructure.Data.Services
 {
 	public class AuthService : IAuthService
 	{
@@ -247,20 +246,14 @@ namespace Bookify.Application.Business.Services
 			return tokenHandler.CreateToken(tokenDescriptor);
 		}
 
-        private double GetJwtExpireHours()
-        {
-            // This line needs to correctly read from the configuration
-            var expireHoursString = _configuration["Jwt:ExpireHours"]; // This assumes "Jwt" is a top-level section
-            if (string.IsNullOrEmpty(expireHoursString) || !double.TryParse(expireHoursString, out double expireHours))
-            {
-                return 2.0; // Default to 2 hours if not configured
-            }
-            return expireHours;
-        }
-
-        public Task<UserDto?> GetUserByIdAsync(string userId)
-        {
-            throw new NotImplementedException();
-        }
-    }	
+		private double GetJwtExpireHours()
+		{
+			var expireHoursString = _configuration["Jwt:ExpireHours"];
+			if (string.IsNullOrEmpty(expireHoursString) || !double.TryParse(expireHoursString, out double expireHours))
+			{
+				return 2.0; // Default to 2 hours if not configured
+			}
+			return expireHours;
+		}
+	}	
 }

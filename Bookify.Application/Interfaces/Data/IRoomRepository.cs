@@ -9,6 +9,7 @@ namespace Bookify.Application.Business.Interfaces.Data
 {
 	public interface IRoomRepository : IRepository<Room>
 	{
+		// Reservation functionality
 		Task<IEnumerable<Room>> GetAvailableRoomsAsync(DateTime checkInDate, DateTime checkOutDate, CancellationToken cancellationToken = default);
 
 		// Add search method with filters
@@ -25,5 +26,10 @@ namespace Bookify.Application.Business.Interfaces.Data
 			CancellationToken cancellationToken = default);
 
 		Task<IEnumerable<RoomType>> GetRoomTypesAsync(CancellationToken cancellationToken = default);
+		Task<Dictionary<int, bool>> CheckRoomsAvailabilityAsync(List<int> roomIds, DateTime checkInDate, DateTime checkOutDate, CancellationToken cancellationToken = default);
+
+
+		// Admin functionality
+
 	}
 }

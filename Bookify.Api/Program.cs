@@ -24,6 +24,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+builder.Services.AddHttpContextAccessor();
+
 // Swagger/OpenAPI configuration
 builder.Services.AddSwaggerGen(c =>
 {
@@ -76,6 +78,15 @@ builder.Services.AddIdentityCore<User>(options =>
 .AddEntityFrameworkStores<BookifyDbContext>()
 .AddDefaultTokenProviders();
 
+// Session Configuration for Reservation Cart
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+	options.Cookie.HttpOnly = true;
+	options.Cookie.IsEssential = true;
+	options.IdleTimeout = TimeSpan.FromMinutes(30);
+});
+
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
@@ -110,6 +121,7 @@ builder.Services.AddAutoMapper(cfg =>
 });
 
 // In Program.cs, add this line:
+builder.Services.AddScoped<IReservationCartService, ReservationCartService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
 
 // Infrastructure Services - Repositories
@@ -117,6 +129,9 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IRoomRepository, RoomRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<IRoomTypeRepository, RoomTypeRepository>();
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddScoped<IReservationCartService, ReservationCartService>();
+
 
 // Infrastructure Services - Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -155,7 +170,9 @@ app.UseCors("Frontend");
 
 app.UseStaticFiles();
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
+
+app.UseSession();
 
 // Authentication & Authorization middleware
 app.UseAuthentication();

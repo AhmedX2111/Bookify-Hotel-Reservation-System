@@ -18,7 +18,7 @@ namespace Bookify.Infrastructure.Data.Data.Repositories
 		{
 			_dbContext = dbContext;
 		}
-
+		// RESERVATION FUNCTIONALITY: Get available rooms for date range
 		public async Task<IEnumerable<Room>> GetAvailableRoomsAsync(
 			DateTime checkInDate,
 			DateTime checkOutDate,
@@ -38,7 +38,7 @@ namespace Bookify.Infrastructure.Data.Data.Repositories
 				.Where(r => !bookedRoomIds.Contains(r.Id) && r.IsAvailable)
 				.ToListAsync(cancellationToken);
 		}
-
+		// RESERVATION FUNCTIONALITY: Search available rooms with filters and pagination
 		public async Task<(IEnumerable<Room> Rooms, int TotalCount)> SearchAvailableRoomsAsync(
 			DateTime checkInDate,
 			DateTime checkOutDate,
@@ -101,12 +101,38 @@ namespace Bookify.Infrastructure.Data.Data.Repositories
 
 			return (rooms, totalCount);
 		}
-
+		// RESERVATION FUNCTIONALITY: Get all room types
 		public async Task<IEnumerable<RoomType>> GetRoomTypesAsync(CancellationToken cancellationToken = default)
 		{
 			return await _dbContext.RoomTypes
 				.OrderBy(rt => rt.Name)
 				.ToListAsync(cancellationToken);
+		}
+
+
+		// RESERVATION FUNCTIONALITY: Quick availability check for multiple rooms
+		public async Task<Dictionary<int, bool>> CheckRoomsAvailabilityAsync(
+			List<int> roomIds,
+			DateTime checkInDate,
+			DateTime checkOutDate,
+			CancellationToken cancellationToken = default)
+		{
+			var bookedRoomIds = await _dbContext.Bookings
+				.Where(b => roomIds.Contains(b.RoomId) &&
+						   b.CheckInDate <= checkOutDate &&
+						   b.CheckOutDate >= checkInDate &&
+						   (b.Status == "Confirmed" || b.Status == "Pending"))
+				.Select(b => b.RoomId)
+				.Distinct()
+				.ToListAsync(cancellationToken);
+
+			var availability = new Dictionary<int, bool>();
+			foreach (var roomId in roomIds)
+			{
+				availability[roomId] = !bookedRoomIds.Contains(roomId);
+			}
+
+			return availability;
 		}
 
 	}

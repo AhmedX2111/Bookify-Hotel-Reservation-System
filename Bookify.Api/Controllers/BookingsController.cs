@@ -116,11 +116,11 @@ namespace Bookify.Api.Controllers
             }
 
             // Step 2: Validate user authentication
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized("User is not authenticated correctly.");
-            }
+            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            //if (string.IsNullOrEmpty(userId))
+            //{
+            //    return Unauthorized("User is not authenticated correctly.");
+            //}
 
             var cartItem = JsonSerializer.Deserialize<CartItemDto>(cartJson);
 
@@ -148,7 +148,7 @@ namespace Bookify.Api.Controllers
                 };
 
                 // Step 5: Create booking (status will be Pending initially)
-                var bookingDto = await _bookingService.CreateBookingAsync(userId, bookingCreateDto, cancellationToken);
+                var bookingDto = await _bookingService.CreateBookingAsync("325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", bookingCreateDto, cancellationToken);
 
                 // Step 6: Clear cart after successful booking
                 HttpContext.Session.Remove(CartSessionKey);
@@ -189,8 +189,21 @@ namespace Bookify.Api.Controllers
         // 3. Enhanced Booking Management with Status Flow
         // ----------------------------------------------------
 
-        [HttpGet]
+        [HttpGet("Bookings")]
         public async Task<ActionResult<IEnumerable<BookingDto>>> GetUserBookings(CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            //if (string.IsNullOrEmpty(userId))
+            //{
+            //    return Unauthorized();
+            //}
+
+            var bookings = await _bookingService.GetUserBookingsAsync("325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", cancellationToken);
+            return Ok(bookings);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<BookingDto>> GetBookingById(int id, CancellationToken cancellationToken)
         {
             //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             //if (string.IsNullOrEmpty(userId))
@@ -198,22 +211,9 @@ namespace Bookify.Api.Controllers
             //    return Unauthorized();
             //}
 
-            var bookings = await _bookingService.GetUserBookingsAsync("8bbf1138-2d6b-4300-8df4-d155a3654739", cancellationToken);
-            return Ok(bookings);
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<BookingDto>> GetBookingById(int id, CancellationToken cancellationToken)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized();
-            }
-
             try
             {
-                var booking = await _bookingService.GetBookingByIdAsync(id, userId, cancellationToken);
+                var booking = await _bookingService.GetBookingByIdAsync(id, "325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", cancellationToken);
                 return Ok(booking);
             }
             catch (NotFoundException)
@@ -233,11 +233,11 @@ namespace Bookify.Api.Controllers
         [HttpPut("{id}/cancel")]
         public async Task<IActionResult> CancelBooking(int id, [FromBody] CancelBookingRequest cancelRequest, CancellationToken cancellationToken)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized();
-            }
+            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            //if (string.IsNullOrEmpty(userId))
+            //{
+            //    return Unauthorized();
+            //}
 
             try
             {
@@ -248,7 +248,7 @@ namespace Bookify.Api.Controllers
                 }
 
                 // Step 2: Attempt cancellation
-                var result = await _bookingService.CancelBookingAsync(id, userId, cancelRequest.Reason, cancellationToken);
+                var result = await _bookingService.CancelBookingAsync(id, "325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", cancelRequest.Reason, cancellationToken);
 
                 if (result.IsSuccess)
                 {
@@ -287,7 +287,7 @@ namespace Bookify.Api.Controllers
         // ----------------------------------------------------
 
         [HttpPut("{id}/confirm")]
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         public async Task<IActionResult> ConfirmBooking(int id, CancellationToken cancellationToken)
         {
             try
@@ -327,7 +327,7 @@ namespace Bookify.Api.Controllers
         // ----------------------------------------------------
 
         [HttpPut("{id}/reject")]
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         public async Task<IActionResult> RejectBooking(int id, [FromBody] RejectBookingRequest rejectRequest, CancellationToken cancellationToken)
         {
             try
@@ -363,15 +363,15 @@ namespace Bookify.Api.Controllers
         [HttpGet("{id}/status")]
         public async Task<IActionResult> GetBookingStatus(int id, CancellationToken cancellationToken)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized();
-            }
+            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            //if (string.IsNullOrEmpty(userId))
+            //{
+            //    return Unauthorized();
+            //}
 
             try
             {
-                var statusInfo = await _bookingService.GetBookingStatusAsync(id, userId, cancellationToken);
+                var statusInfo = await _bookingService.GetBookingStatusAsync(id, "325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", cancellationToken);
                 return Ok(statusInfo);
             }
             catch (NotFoundException)

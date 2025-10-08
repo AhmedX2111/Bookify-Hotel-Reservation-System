@@ -110,28 +110,6 @@ namespace Bookify.Application.Business.Services
             return true;
         }
 
-        public async Task<bool> ConfirmBookingAsync(int id, CancellationToken cancellationToken)
-        {
-            var booking = await _bookingRepository.GetByIdAsync(id);
-            if (booking == null)
-                throw new NotFoundException($"Booking with ID {id} not found.");
-
-            if (booking.Status != "Pending")
-                throw new ValidationException($"Cannot confirm booking with status: {booking.Status}");
-
-            bool isAvailable = await IsRoomAvailableAsync(booking.RoomId, booking.CheckInDate, booking.CheckOutDate);
-            if (!isAvailable)
-                throw new ValidationException("Room is no longer available for the selected dates.");
-
-            booking.Status = "Confirmed";
-            booking.ConfirmedAt = DateTime.UtcNow;
-            booking.UpdatedAt = DateTime.UtcNow;
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return true; // Just return true if successful
-        }
-
-        // Additional helper methods that might not be in the interface
         public async Task<bool> IsRoomAvailableAsync(int roomId, DateTime checkIn, DateTime checkOut)
         {
             var overlappingBookings = await _bookingRepository.GetOverlappingBookingsAsync(roomId, checkIn, checkOut);
@@ -156,6 +134,7 @@ namespace Bookify.Application.Business.Services
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return true; // Just return true if successful
         }
+
         public async Task<BookingStatusInfo> GetBookingStatusAsync(int id, string userId, CancellationToken cancellationToken)
         {
             var booking = await _bookingRepository.GetByIdAsync(id);
@@ -175,31 +154,6 @@ namespace Bookify.Application.Business.Services
             };
         }
 
-        // Private helper methods
-        private (decimal RefundAmount, decimal CancellationFee) CalculateRefund(Booking booking)
-        {
-            var daysUntilCheckIn = (booking.CheckInDate - DateTime.Today).Days;
-            decimal refundPercentage = 1.0m;
-
-            if (daysUntilCheckIn < 1)
-                refundPercentage = 0.0m;
-            else if (daysUntilCheckIn < 3)
-                refundPercentage = 0.5m;
-            else if (daysUntilCheckIn < 7)
-                refundPercentage = 0.8m;
-
-            var refundAmount = booking.TotalCost * refundPercentage;
-            var cancellationFee = booking.TotalCost - refundAmount;
-
-            return (refundAmount, cancellationFee);
-        }
-
-        private bool CanCancelBooking(Booking booking)
-        {
-            return booking.Status == "Pending"||
-                   booking.Status == "Confirmed";
-        }
-
         private string GetCancellationPolicy(Booking booking)
         {
             var daysUntilCheckIn = (booking.CheckInDate - DateTime.Today).Days;
@@ -214,48 +168,102 @@ namespace Bookify.Application.Business.Services
                 return "No refund for same-day cancellations";
         }
 
-        private BookingDto MapToDto(Booking booking)
+        public async Task<BookingDto?> GetBookingByIdAsync(int id, string userId, CancellationToken cancellationToken = default)
         {
-            return new BookingDto
+            var booking = await _bookingRepository.GetByIdAsync(id);
+            if (booking == null)
+                return null;
+
+            if (booking.UserId != userId)
+                throw new UnauthorizedAccessException("Access denied to this booking.");
+
+            return MapToDto(booking);
+        }
+
+        public async Task<CancellationResult> CancelBookingWithReasonAsync(int id, string userId, string reason, CancellationToken cancellationToken = default)
+        {
+            var booking = await _bookingRepository.GetByIdAsync(id);
+            if (booking == null)
             {
-                Id = booking.Id,
-                UserId = booking.UserId,
-                RoomId = booking.RoomId,
-                RoomNumber = booking.Room?.RoomNumber ?? "N/A",
-                RoomType = booking.Room?.RoomType?.Name ?? "N/A",
-                CheckInDate = booking.CheckInDate,
-                CheckOutDate = booking.CheckOutDate,
-                TotalCost = booking.TotalCost,
-                Status = booking.Status.ToString(),
-                CreatedAt = booking.CreatedAt,
-                ConfirmedAt = booking.ConfirmedAt,
-                CancelledAt = booking.CancelledAt,
-                CancellationReason = booking.CancellationReason,
-                RefundAmount = booking.RefundAmount,
-                CancellationFee = booking.CancellationFee
+                return new CancellationResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = $"Booking with ID {id} not found.",
+                    RefundAmount = 0,
+                    CancellationFee = 0
+                };
+            }
+
+            if (booking.UserId != userId)
+            {
+                return new CancellationResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "You can only cancel your own bookings.",
+                    RefundAmount = 0,
+                    CancellationFee = 0
+                };
+            }
+
+            if (booking.Status == "Cancelled")
+            {
+                return new CancellationResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "Booking is already cancelled.",
+                    RefundAmount = 0,
+                    CancellationFee = 0
+                };
+            }
+
+            if (booking.Status == "Completed")
+            {
+                return new CancellationResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "Cannot cancel a completed booking.",
+                    RefundAmount = 0,
+                    CancellationFee = 0
+                };
+            }
+
+            if (booking.Status == "Active")
+            {
+                return new CancellationResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "Cannot cancel an active booking. Please contact support.",
+                    RefundAmount = 0,
+                    CancellationFee = 0
+                };
+            }
+
+            var (refundAmount, cancellationFee) = CalculateRefund(booking);
+
+            booking.Status = "Cancelled";
+            booking.CancellationReason = reason;
+            booking.CancelledAt = DateTime.UtcNow;
+            booking.UpdatedAt = DateTime.UtcNow;
+            booking.RefundAmount = refundAmount;
+            booking.CancellationFee = cancellationFee;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new CancellationResult
+            {
+                IsSuccess = true,
+                ErrorMessage = string.Empty, // Clear error on success
+                RefundAmount = refundAmount,
+                CancellationFee = cancellationFee
             };
         }
 
-        public Task<BookingDto?> GetBookingByIdAsync(int id, string userId, CancellationToken cancellationToken = default)
+        public async Task<bool> IsRoomAvailableAsync(int roomId, DateTime checkIn, DateTime checkOut, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
-        }
+            var overlappingBookings = await _bookingRepository.GetOverlappingBookingsAsync(roomId, checkIn, checkOut);
 
-        public Task<CancellationResult> CancelBookingWithReasonAsync(int id, string userId, string reason, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        Task<ConfirmationResult> IBookingService.ConfirmBookingAsync(int bookingId, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
-        }
-
-       
-
-        public Task<bool> IsRoomAvailableAsync(int roomId, DateTime checkIn, DateTime checkOut, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
+            // Room is available if there are no overlapping bookings that are active (not cancelled or rejected)
+            return !overlappingBookings.Any(b => b.Status != "Cancelled" && b.Status != "Rejected");
         }
 
         public async Task<CancellationResult> CancelBookingAsync(int id, string userId, string reason, CancellationToken cancellationToken)
@@ -294,5 +302,104 @@ namespace Bookify.Application.Business.Services
                 CancellationFee = cancellationFee
             };
         }
+
+        async Task<ConfirmationResult> IBookingService.ConfirmBookingAsync(int bookingId, CancellationToken cancellationToken)
+        {
+            var booking = await _bookingRepository.GetByIdAsync(bookingId);
+            if (booking == null)
+            {
+                return new ConfirmationResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = $"Booking with ID {bookingId} not found."
+                };
+            }
+
+            if (booking.Status != "Pending")
+            {
+                return new ConfirmationResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = $"Cannot confirm booking with status: {booking.Status}"
+                };
+            }
+
+            bool isAvailable = await IsRoomAvailableAsync(booking.RoomId, booking.CheckInDate, booking.CheckOutDate, cancellationToken);
+            if (!isAvailable)
+            {
+                return new ConfirmationResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = "Room is no longer available for the selected dates."
+                };
+            }
+
+            booking.Status = "Confirmed";
+            booking.ConfirmedAt = DateTime.UtcNow;
+            booking.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Return the booking details as DTO
+            var bookingDto = MapToDto(booking);
+
+            return new ConfirmationResult
+            {
+                IsSuccess = true,
+                BookingDetails = bookingDto,
+                ErrorMessage = string.Empty // Clear error message on success
+            };
+        }
+
+
+        #region DTO Mapping
+        private BookingDto MapToDto(Booking booking)
+        {
+            return new BookingDto
+            {
+                Id = booking.Id,
+                UserId = booking.UserId,
+                RoomId = booking.RoomId,
+                RoomNumber = booking.Room?.RoomNumber ?? "N/A",
+                RoomType = booking.Room?.RoomType?.Name ?? "N/A",
+                CheckInDate = booking.CheckInDate,
+                CheckOutDate = booking.CheckOutDate,
+                TotalCost = booking.TotalCost,
+                Status = booking.Status.ToString(),
+                CreatedAt = booking.CreatedAt,
+                ConfirmedAt = booking.ConfirmedAt,
+                CancelledAt = booking.CancelledAt,
+                CancellationReason = booking.CancellationReason,
+                RefundAmount = booking.RefundAmount,
+                CancellationFee = booking.CancellationFee
+            };
+        }
+        #endregion
+
+        #region Private helper methods
+        private (decimal RefundAmount, decimal CancellationFee) CalculateRefund(Booking booking)
+        {
+            var daysUntilCheckIn = (booking.CheckInDate - DateTime.Today).Days;
+            decimal refundPercentage = 1.0m;
+
+            if (daysUntilCheckIn < 1)
+                refundPercentage = 0.0m;
+            else if (daysUntilCheckIn < 3)
+                refundPercentage = 0.5m;
+            else if (daysUntilCheckIn < 7)
+                refundPercentage = 0.8m;
+
+            var refundAmount = booking.TotalCost * refundPercentage;
+            var cancellationFee = booking.TotalCost - refundAmount;
+
+            return (refundAmount, cancellationFee);
+        }
+
+        private bool CanCancelBooking(Booking booking)
+        {
+            return booking.Status == "Pending" ||
+                   booking.Status == "Confirmed";
+        } 
+        #endregion
     }
 }

@@ -1,16 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Bookify.Shared.Exceptions
 {
     public class NotFoundException : Exception
     {
-        // Parameterless constructor (optional, but good practice)
+        // 1. Parameterless constructor (good practice)
         public NotFoundException() : base() { }
 
-        // REQUIRED FIX: Constructor that takes a message
+        // 2. REQUIRED FIX: Constructor that takes a message
         public NotFoundException(string message) : base(message) { }
 
-        // Optional: Constructor for inner exceptions
+        // 3. Optional: Constructor for inner exceptions
         public NotFoundException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

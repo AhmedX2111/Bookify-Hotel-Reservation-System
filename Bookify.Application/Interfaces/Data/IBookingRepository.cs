@@ -9,7 +9,8 @@ namespace Bookify.Application.Business.Interfaces.Data
 {
 	public interface IBookingRepository : IRepository<Booking>
 	{
-		Task<IEnumerable<Booking>> GetUserBookingsAsync(string userId, CancellationToken cancellationToken = default);
-		Task<bool> IsRoomAvailableAsync(int roomId, DateTime checkInDate, DateTime checkOutDate, CancellationToken cancellationToken = default);
-	}
+        Task<IEnumerable<Booking>> GetUserBookingsAsync(string userId);
+        Task<IEnumerable<Booking>> GetOverlappingBookingsAsync(int roomId, DateTime checkIn, DateTime checkOut);
+        Task<Booking> GetByIdAsync(int id);
+    }
 }

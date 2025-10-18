@@ -1,16 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Bookify.Shared.Exceptions
 {
     public class ValidationException : Exception
     {
-        // Parameterless constructor (optional, but good practice)
+        // 1. Parameterless constructor (good practice)
         public ValidationException() : base() { }
 
-        // REQUIRED FIX: Constructor that takes a message
+        // 2. REQUIRED FIX: Constructor that takes a message
         public ValidationException(string message) : base(message) { }
 
-        // Optional: Constructor for inner exceptions
+        // 3. Optional: Constructor for inner exceptions
         public ValidationException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

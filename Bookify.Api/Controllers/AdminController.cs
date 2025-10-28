@@ -7,7 +7,7 @@ namespace Bookify.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")] 
+    [Authorize(Roles = "Admin")]
     public class AdminController : ControllerBase
     {
         private readonly IBookingService _bookingService;
@@ -19,7 +19,7 @@ namespace Bookify.Api.Controllers
             _roomService = roomService;
         }
 
-     
+
         [HttpGet("bookings")]
         public async Task<ActionResult<IEnumerable<BookingDto>>> GetAllBookings(CancellationToken cancellationToken)
         {
@@ -30,10 +30,12 @@ namespace Bookify.Api.Controllers
             }
             catch (Exception ex)
             {
-          
+
                 return StatusCode(500, "An error occurred while retrieving all bookings.");
             }
         }
+
+
 
 
 

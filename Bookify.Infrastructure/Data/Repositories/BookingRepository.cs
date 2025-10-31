@@ -46,7 +46,6 @@
 using Bookify.Application.Business.Interfaces.Data;
 using Bookify.Domain.Entities;
 using Bookify.Infrastructure.Data.Data.Context;
-using Bookify.Infrastructure.Data.Data.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bookify.Infrastructure.Data.Data.Repositories
@@ -87,6 +86,55 @@ namespace Bookify.Infrastructure.Data.Data.Repositories
                 .Include(b => b.Room)
                 .ThenInclude(r => r.RoomType)
                 .FirstOrDefaultAsync(b => b.Id == id);
+        }
+        public async Task<IEnumerable<Booking>> GetBookingsPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? search = null,
+        CancellationToken cancellationToken = default)
+        {
+            // Base query including relations
+            IQueryable<Booking> query = _dbContext.Bookings
+                .Include(b => b.Room)
+                .ThenInclude(r => r.RoomType)
+                .Include(b => b.User); // Include user for CustomerName mapping
+
+            // Optional search by user name, room number, or status
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                string term = search.ToLower();
+                query = query.Where(b =>
+                    b.User.UserName.ToLower().Contains(term) ||
+                    b.Room.RoomNumber.ToLower().Contains(term) ||
+                    b.Status.ToLower().Contains(term));
+            }
+
+            // Sort by creation date (most recent first)
+            query = query.OrderByDescending(b => b.CreatedAt);
+
+            // Apply pagination
+            var bookings = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return bookings;
+        }
+
+        public async Task<int> CountAsync(string? search = null, CancellationToken cancellationToken = default)
+        {
+            IQueryable<Booking> query = _dbContext.Bookings.Include(b => b.User).Include(b => b.Room);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                string term = search.ToLower();
+                query = query.Where(b =>
+                    b.User.UserName.ToLower().Contains(term) ||
+                    b.Room.RoomNumber.ToLower().Contains(term) ||
+                    b.Status.ToLower().Contains(term));
+            }
+
+            return await query.CountAsync(cancellationToken);
         }
     }
 }

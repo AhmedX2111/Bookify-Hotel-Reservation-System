@@ -1,9 +1,12 @@
-﻿using Bookify.Application;
+﻿using Bookify.Application.Business.Interfaces;
+using Bookify.Application.Business.Interfaces.Admin;
 using Bookify.Application.Business.Interfaces.Data;
 using Bookify.Application.Business.Interfaces.Services;
+using Bookify.Application.Business.Mappings;
 using Bookify.Application.Business.Services;
 using Bookify.Domain.Entities;
 using Bookify.Infrastructure.Data;
+using Bookify.Infrastructure.Data.Data.AdminServices;
 using Bookify.Infrastructure.Data.Data.Context;
 using Bookify.Infrastructure.Data.Data.Repositories;
 using Bookify.Infrastructure.Data.Data.UnitOfWork;
@@ -11,22 +14,13 @@ using Bookify.Infrastructure.Data.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
-
+// Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -61,16 +55,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Database Configuration with retry logic
+// Database Configuration
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<BookifyDbContext>(options =>
-    options.UseSqlServer(connectionString, sqlOptions =>
-    {
-        sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null);
-    }));
+    options.UseSqlServer(connectionString));
 
 // ASP.NET Identity Configuration
 builder.Services.AddIdentityCore<User>(options =>
@@ -112,7 +100,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Application Services (MediatR and AutoMapper)
+// Application Services
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(IAuthService).Assembly));
 
@@ -120,8 +108,12 @@ builder.Services.AddAutoMapper(cfg =>
 {
     cfg.AddMaps(typeof(IAuthService).Assembly);
 });
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.AddMaps(typeof(AdminMappingProfile).Assembly);
+});
 
-// Room Service (Application Service)
+// In Program.cs, add this line:
 builder.Services.AddScoped<IRoomService, RoomService>();
 
 // Infrastructure Services - Repositories
@@ -129,13 +121,20 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IRoomRepository, RoomRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<IRoomTypeRepository, RoomTypeRepository>();
-builder.Services.AddScoped<IBookingService, BookingService>();
+
+//admin services
+builder.Services.AddScoped<IAdminRoomService, AdminRoomService>();
+builder.Services.AddScoped<IAdminRoomTypeService, AdminRoomTypeService>();
+builder.Services.AddScoped<IAdminBookingService, AdminBookingService>();
+
 
 // Infrastructure Services - Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Infrastructure Services - Custom Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddHostedService<DatabaseSeeder>();
 
 // Register DbContext interface
 builder.Services.AddScoped<IBookfiyDbContext>(provider =>
@@ -155,7 +154,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -163,8 +162,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("Frontend");
-app.UseSession();
+
 app.UseStaticFiles();
+
 app.UseHttpsRedirection();
 
 // Authentication & Authorization middleware
@@ -173,35 +173,5 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Seed data - MOVE THIS AFTER app.Build() and add proper error handling
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<BookifyDbContext>();
-
-        // Apply pending migrations and create database if it doesn't exist
-        await context.Database.MigrateAsync();
-
-        // Now seed the data
-        await SeedData.Initialize(services);
-
-        Console.WriteLine("Database seeded successfully.");
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the database.");
-        Console.WriteLine($"Seeding error: {ex.Message}");
-
-        // More detailed error information
-        if (ex.InnerException != null)
-        {
-            logger.LogError(ex.InnerException, "Inner exception details:");
-            Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-        }
-    }
-}
 
 app.Run();

@@ -10,7 +10,7 @@ namespace Bookify.Infrastructure.Data.Data.Context
         public BookifyDbContext CreateDbContext(string[] args)
         {
             // يجب أن تكون سلسلة الاتصال هنا هي نفسها التي في appsettings.json
-            const string connectionString = "Server=(localdb)\\MSSQLLocalDB;Database=BookifyDb;Trusted_Connection=True;TrustServerCertificate=True;";
+            const string connectionString = "Server=.;Database=Bookify_Db_API;Trusted_Connection=True;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=true;";
 
             var optionsBuilder = new DbContextOptionsBuilder<BookifyDbContext>();
             optionsBuilder.UseSqlServer(connectionString);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace Bookify.Application.Business.Dtos.Bookings
 {
@@ -24,6 +25,7 @@ namespace Bookify.Application.Business.Dtos.Bookings
 
         // 5. Status & Metadata
         public string Status { get; set; } // e.g., "Pending", "Confirmed", "Cancelled"
+        public string PaymentIntentId { get; set; }  // New: Stripe PaymentIntent ID
 
 
         public DateTime CreatedAt { get; set; }

@@ -11,11 +11,13 @@ using Bookify.Infrastructure.Data.Data.Context;
 using Bookify.Infrastructure.Data.Data.Repositories;
 using Bookify.Infrastructure.Data.Data.UnitOfWork;
 using Bookify.Infrastructure.Data.Services;
+using Bookify.Api.HealthChecks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,6 +61,10 @@ builder.Services.AddSwaggerGen(c =>
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<BookifyDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+// Health Checks - Database connectivity check
+builder.Services.AddHealthChecks()
+    .AddCheck<Bookify.Api.HealthChecks.DatabaseHealthCheck>("database");
 
 // ASP.NET Identity Configuration
 builder.Services.AddIdentityCore<User>(options =>
@@ -133,6 +139,17 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Infrastructure Services - Custom Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IUserService, UserService>();
+
+// Session State Configuration (for reservation cart)
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 
 builder.Services.AddHostedService<DatabaseSeeder>();
 
@@ -152,6 +169,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(context.Configuration)); 
+
+Stripe.StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];  
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -167,11 +188,16 @@ app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 
+// Session middleware (must be before UseRouting/UseEndpoints)
+app.UseSession();
+
 // Authentication & Authorization middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
+// Health Check Endpoint
+app.MapHealthChecks("/health");
 
 app.Run();

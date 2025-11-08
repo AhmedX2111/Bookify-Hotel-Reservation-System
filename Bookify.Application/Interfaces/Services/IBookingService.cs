@@ -102,6 +102,13 @@ namespace Bookify.Application.Business.Interfaces.Services
 
         Task<IEnumerable<BookingDto>> GetUserBookingsAsync(string userId, CancellationToken cancellationToken);
 
+        Task<string> ProcessPaymentAsync(decimal amount, string paymentMethodId);
+
+        /// <summary>
+        /// Creates a booking and processes payment in a single atomic operation using Unit of Work pattern.
+        /// </summary>
+        Task<BookingDto> CreateBookingWithPaymentAsync(string userId, BookingCreateDto bookingDto, string paymentMethodId, CancellationToken cancellationToken = default);
+
     }
 
     /// <summary>

@@ -4,6 +4,8 @@ using Bookify.Application.Business.Interfaces.Services;
 using Bookify.Domain.Entities;
 using Bookify.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Stripe;
 
 namespace Bookify.Application.Business.Services
 {
@@ -12,24 +14,39 @@ namespace Bookify.Application.Business.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IBookingRepository _bookingRepository;
         private readonly IRoomRepository _roomRepository;
+        private readonly ILogger<BookingService> _logger;
 
-        public BookingService(IUnitOfWork unitOfWork, IBookingRepository bookingRepository, IRoomRepository roomRepository)
+        public BookingService(
+            IUnitOfWork unitOfWork, 
+            IBookingRepository bookingRepository, 
+            IRoomRepository roomRepository,
+            ILogger<BookingService> logger)
         {
             _unitOfWork = unitOfWork;
             _bookingRepository = bookingRepository;
             _roomRepository = roomRepository;
+            _logger = logger;
         }
 
         // Implement all required interface methods
         public async Task<BookingDto> CreateBookingAsync(string userId, BookingCreateDto bookingDto, CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Creating booking. UserId: {UserId}, RoomId: {RoomId}", userId, bookingDto.RoomId);
+
             var room = await _roomRepository.GetByIdAsync(bookingDto.RoomId);
             if (room == null)
+            {
+                _logger.LogWarning("Room not found. RoomId: {RoomId}", bookingDto.RoomId);
                 throw new NotFoundException($"Room with ID {bookingDto.RoomId} not found.");
+            }
 
             var isAvailable = await IsRoomAvailableAsync(bookingDto.RoomId, bookingDto.CheckInDate, bookingDto.CheckOutDate);
             if (!isAvailable)
+            {
+                _logger.LogWarning("Room not available. RoomId: {RoomId}, CheckIn: {CheckIn}, CheckOut: {CheckOut}", 
+                    bookingDto.RoomId, bookingDto.CheckInDate, bookingDto.CheckOutDate);
                 throw new ValidationException("Room is not available for the selected dates.");
+            }
 
             if (bookingDto.CheckInDate >= bookingDto.CheckOutDate)
                 throw new ValidationException("Check-out date must be after check-in date.");
@@ -46,14 +63,18 @@ namespace Bookify.Application.Business.Services
                 RoomId = bookingDto.RoomId,
                 CheckInDate = bookingDto.CheckInDate,
                 CheckOutDate = bookingDto.CheckOutDate,
+                NumberOfNights = numberOfNights,
                 TotalCost = totalCost,
-                Status ="Pending",
+                Status = "Pending",
+                PaymentIntentId = null, // Will be set when payment is processed
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
             await _bookingRepository.AddAsync(booking);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Booking created successfully. BookingId: {BookingId}, UserId: {UserId}", booking.Id, userId);
 
             return MapToDto(booking);
         }
@@ -352,6 +373,91 @@ namespace Bookify.Application.Business.Services
         }
 
 
+        public async Task<string> ProcessPaymentAsync(decimal amount, string paymentMethodId)
+        {
+            var options = new PaymentIntentCreateOptions
+            {
+                Amount = (long)(amount * 100),  // Convert to cents
+                Currency = "usd",
+                PaymentMethod = paymentMethodId,
+                Confirm = true,
+                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions { Enabled = true }
+            };
+            var service = new PaymentIntentService();
+            var intent = await service.CreateAsync(options);
+            return intent.Id;  // Return PaymentIntentId for storage
+        }
+    
+
+        /// <summary>
+        /// Creates a booking and processes payment. Uses Unit of Work pattern for atomic database operations.
+        /// Note: Stripe payment is processed first; if booking creation fails, payment refund should be handled separately.
+        /// </summary>
+        public async Task<BookingDto> CreateBookingWithPaymentAsync(
+            string userId, 
+            BookingCreateDto bookingDto, 
+            string paymentMethodId,
+            CancellationToken cancellationToken = default)
+        {
+            // Step 1: Validate room and availability
+            var room = await _roomRepository.GetByIdAsync(bookingDto.RoomId);
+            if (room == null)
+                throw new NotFoundException($"Room with ID {bookingDto.RoomId} not found.");
+
+            var isAvailable = await IsRoomAvailableAsync(bookingDto.RoomId, bookingDto.CheckInDate, bookingDto.CheckOutDate, cancellationToken);
+            if (!isAvailable)
+                throw new ValidationException("Room is not available for the selected dates.");
+
+            if (bookingDto.CheckInDate >= bookingDto.CheckOutDate)
+                throw new ValidationException("Check-out date must be after check-in date.");
+
+            if (bookingDto.CheckInDate.Date <= DateTime.Today)
+                throw new ValidationException("Check-in date must be in the future.");
+
+            // Step 2: Calculate costs
+            var numberOfNights = (int)(bookingDto.CheckOutDate - bookingDto.CheckInDate).TotalDays;
+            var totalCost = numberOfNights * (room.RoomType?.PricePerNight ?? 100m);
+
+            // Step 3: Process payment with Stripe (external service - cannot be rolled back)
+            string paymentIntentId;
+            try
+            {
+                _logger.LogInformation("Processing payment for booking. UserId: {UserId}, RoomId: {RoomId}, Amount: {Amount}", 
+                    userId, bookingDto.RoomId, totalCost);
+                paymentIntentId = await ProcessPaymentAsync(totalCost, paymentMethodId);
+                _logger.LogInformation("Payment processed successfully. PaymentIntentId: {PaymentIntentId}", paymentIntentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Payment processing failed for UserId: {UserId}, RoomId: {RoomId}, Amount: {Amount}", 
+                    userId, bookingDto.RoomId, totalCost);
+                throw new ValidationException($"Payment processing failed: {ex.Message}");
+            }
+
+            // Step 4: Create booking with payment intent ID (atomic operation via Unit of Work)
+            var booking = new Booking
+            {
+                UserId = userId,
+                RoomId = bookingDto.RoomId,
+                CheckInDate = bookingDto.CheckInDate,
+                CheckOutDate = bookingDto.CheckOutDate,
+                NumberOfNights = numberOfNights,
+                TotalCost = totalCost,
+                Status = "Pending", // Will be confirmed by admin
+                PaymentIntentId = paymentIntentId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _bookingRepository.AddAsync(booking);
+            await _unitOfWork.SaveChangesAsync(cancellationToken); // Atomic save - uses EF Core transaction
+
+            _logger.LogInformation("Booking created successfully with payment. BookingId: {BookingId}, UserId: {UserId}, PaymentIntentId: {PaymentIntentId}", 
+                booking.Id, userId, paymentIntentId);
+
+            return MapToDto(booking);
+        }
+
         #region DTO Mapping
         private BookingDto MapToDto(Booking booking)
         {
@@ -364,8 +470,10 @@ namespace Bookify.Application.Business.Services
                 RoomType = booking.Room?.RoomType?.Name ?? "N/A",
                 CheckInDate = booking.CheckInDate,
                 CheckOutDate = booking.CheckOutDate,
+                NumberOfNights = booking.NumberOfNights,
                 TotalCost = booking.TotalCost,
-                Status = booking.Status.ToString(),
+                Status = booking.Status,
+                PaymentIntentId = booking.PaymentIntentId ?? string.Empty,
                 CreatedAt = booking.CreatedAt,
                 ConfirmedAt = booking.ConfirmedAt,
                 CancelledAt = booking.CancelledAt,

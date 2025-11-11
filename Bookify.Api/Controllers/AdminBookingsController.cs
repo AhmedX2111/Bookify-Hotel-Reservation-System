@@ -45,7 +45,6 @@ namespace Bookify.Api.Controllers
             return NoContent();
         }
         [HttpPost("update-statuses")]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateStatuses(CancellationToken cancellationToken)
         {
             await _bookingService.UpdateCompletedBookingsAsync(cancellationToken);

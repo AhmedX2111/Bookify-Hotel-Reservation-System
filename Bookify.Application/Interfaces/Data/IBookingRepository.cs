@@ -1,4 +1,5 @@
 ﻿using Bookify.Domain.Entities;
+using System.Linq.Expressions;
 
 namespace Bookify.Application.Business.Interfaces.Data
 {
@@ -14,5 +15,7 @@ namespace Bookify.Application.Business.Interfaces.Data
       CancellationToken cancellationToken = default);
 
         Task<int> CountAsync(string? search = null, CancellationToken cancellationToken = default);
+        Task<IEnumerable<Booking>> GetAllAsync(Expression<Func<Booking, bool>> predicate, CancellationToken cancellationToken);
+
     }
 }

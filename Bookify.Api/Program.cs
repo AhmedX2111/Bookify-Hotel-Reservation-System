@@ -189,25 +189,23 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(context.Configuration)); 
+builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(context.Configuration));
 
-// Configure Stripe API key. Prefer configuration, but fall back to a hard-coded
-// test key so the project works out-of-the-box for local testing.
-// IMPORTANT: Hard-coding secrets is insecure and must NOT be used in production.
 var stripeSecretFromConfig = builder.Configuration["Stripe:SecretKey"];
-var stripeTestFallback = "sk_test_51SPd3vAQh2PRzzlKTuUHTzxA2KduAMLpLGYHWt4UyTWGDFpNfnTSJqwjgOwhzBWB5Pz6z6cHxFZmr2cYri3rXvp600NxSmv7re";
-Stripe.StripeConfiguration.ApiKey = !string.IsNullOrWhiteSpace(stripeSecretFromConfig)
-    ? stripeSecretFromConfig
-    : stripeTestFallback;
+var stripePublishableFromConfig = builder.Configuration["Stripe:PublishableKey"];
 
-// Optionally expose the publishable key to configuration for front-end use.
-var publishableFromConfig = builder.Configuration["Stripe:PublishableKey"];
-if (string.IsNullOrWhiteSpace(publishableFromConfig))
-{
-    // For convenience during local testing, write the test publishable key to configuration
-    // so that a local frontend can read it through IConfiguration if wired.
-    builder.Configuration["Stripe:PublishableKey"] = "pk_test_51SPd3vAQh2PRzzlKcd0NLMVntjIAzgCyp05cIQwEHD4FADK1GEDEolFcolp5Gof2iAeptCb69IZpctRSylSjF6mh00QnbBoPsU";
-}
+// For local testing, you can provide a default from environment variables
+var stripeSecret = !string.IsNullOrWhiteSpace(stripeSecretFromConfig)
+    ? stripeSecretFromConfig
+    : Environment.GetEnvironmentVariable("STRIPE_TEST_SECRET");
+
+var stripePublishable = !string.IsNullOrWhiteSpace(stripePublishableFromConfig)
+    ? stripePublishableFromConfig
+    : Environment.GetEnvironmentVariable("STRIPE_TEST_PUBLISHABLE");
+
+Stripe.StripeConfiguration.ApiKey = stripeSecret;
+builder.Configuration["Stripe:PublishableKey"] = stripePublishable;
+
 
 var app = builder.Build();
 

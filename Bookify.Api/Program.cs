@@ -26,6 +26,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+// Allow controllers to receive model state and return detailed validation errors
+// explicitly instead of the automatic 400 produced by [ApiController]. This
+// makes it easier to log and return enriched errors during local testing.
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    options.SuppressModelStateInvalidFilter = true;
+});
+
 // Swagger/OpenAPI configuration
 builder.Services.AddSwaggerGen(c =>
 {
@@ -86,25 +94,37 @@ builder.Services.AddIdentityCore<User>(options =>
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+// Program.cs - JWT Configuration
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ClockSkew = TimeSpan.Zero
-    };
-});
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        };
+
+        // For development - easier debugging
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine("Token validated successfully");
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 // Application Services
 builder.Services.AddMediatR(cfg =>
@@ -171,7 +191,23 @@ builder.Services.AddCors(options =>
 
 builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(context.Configuration)); 
 
-Stripe.StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];  
+// Configure Stripe API key. Prefer configuration, but fall back to a hard-coded
+// test key so the project works out-of-the-box for local testing.
+// IMPORTANT: Hard-coding secrets is insecure and must NOT be used in production.
+var stripeSecretFromConfig = builder.Configuration["Stripe:SecretKey"];
+var stripeTestFallback = "sk_test_51SPd3vAQh2PRzzlKTuUHTzxA2KduAMLpLGYHWt4UyTWGDFpNfnTSJqwjgOwhzBWB5Pz6z6cHxFZmr2cYri3rXvp600NxSmv7re";
+Stripe.StripeConfiguration.ApiKey = !string.IsNullOrWhiteSpace(stripeSecretFromConfig)
+    ? stripeSecretFromConfig
+    : stripeTestFallback;
+
+// Optionally expose the publishable key to configuration for front-end use.
+var publishableFromConfig = builder.Configuration["Stripe:PublishableKey"];
+if (string.IsNullOrWhiteSpace(publishableFromConfig))
+{
+    // For convenience during local testing, write the test publishable key to configuration
+    // so that a local frontend can read it through IConfiguration if wired.
+    builder.Configuration["Stripe:PublishableKey"] = "pk_test_51SPd3vAQh2PRzzlKcd0NLMVntjIAzgCyp05cIQwEHD4FADK1GEDEolFcolp5Gof2iAeptCb69IZpctRSylSjF6mh00QnbBoPsU";
+}
 
 var app = builder.Build();
 
@@ -190,7 +226,7 @@ app.UseHttpsRedirection();
 
 // Session middleware (must be before UseRouting/UseEndpoints)
 app.UseSession();
-
+app.UseRouting();
 // Authentication & Authorization middleware
 app.UseAuthentication();
 app.UseAuthorization();

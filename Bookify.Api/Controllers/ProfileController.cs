@@ -8,7 +8,7 @@ namespace Bookify.Api.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
-	[Authorize]
+	//[Authorize]
 	public class ProfileController : ControllerBase
 	{
 		private readonly IUserService _userService;

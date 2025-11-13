@@ -47,7 +47,7 @@ using Bookify.Application.Business.Interfaces.Data;
 using Bookify.Domain.Entities;
 using Bookify.Infrastructure.Data.Data.Context;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
+
 
 namespace Bookify.Infrastructure.Data.Data.Repositories
 {
@@ -136,13 +136,6 @@ namespace Bookify.Infrastructure.Data.Data.Repositories
             }
 
             return await query.CountAsync(cancellationToken);
-        }
-        public async Task<IEnumerable<Booking>> GetAllAsync(Expression<Func<Booking, bool>> predicate, CancellationToken cancellationToken)
-        {
-            return await _context.Bookings
-                .Include(b => b.Room)
-                .Where(predicate)
-                .ToListAsync(cancellationToken);
         }
 
     }

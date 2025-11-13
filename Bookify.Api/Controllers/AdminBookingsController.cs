@@ -1,5 +1,4 @@
 ﻿using Bookify.Application.Business.Interfaces;
-using Bookify.Application.Business.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,12 +11,11 @@ namespace Bookify.Api.Controllers
     public class AdminBookingsController : ControllerBase
     {
         private readonly IAdminBookingService _service;
-        private readonly IBookingService _bookingService;
 
-        public AdminBookingsController(IAdminBookingService service, IBookingService bookingService)
+
+        public AdminBookingsController(IAdminBookingService service)
         {
             _service = service;
-            _bookingService = bookingService;
         }
 
         [HttpGet]
@@ -44,12 +42,7 @@ namespace Bookify.Api.Controllers
             await _service.CancelAsync(id, cancellationToken);
             return NoContent();
         }
-        [HttpPost("update-statuses")]
-        public async Task<IActionResult> UpdateStatuses(CancellationToken cancellationToken)
-        {
-            await _bookingService.UpdateCompletedBookingsAsync(cancellationToken);
-            return Ok(new { Message = "Completed bookings updated successfully." });
-        }
+
 
     }
 }

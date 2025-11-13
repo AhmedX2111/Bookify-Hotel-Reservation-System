@@ -1,6 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <Compile Remove="Interfaces\Services\Background\**" />
+    <EmbeddedResource Remove="Interfaces\Services\Background\**" />
+    <None Remove="Interfaces\Services\Background\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AutoMapper" Version="15.0.1" />
     <PackageReference Include="FluentValidation" Version="12.0.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
@@ -11,11 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Bookify.Domain\Bookify.Domain.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Interfaces\Services\Background\" />
-  </ItemGroup>
-
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

@@ -4,7 +4,6 @@ using Bookify.Application.Business.Interfaces.Data;
 using Bookify.Application.Business.Interfaces.Services;
 using Bookify.Application.Business.Mappings;
 using Bookify.Application.Business.Services;
-using Bookify.Application.Business.Services.Background;
 using Bookify.Domain.Entities;
 using Bookify.Infrastructure.Data;
 using Bookify.Infrastructure.Data.Data.AdminServices;
@@ -127,7 +126,6 @@ builder.Services.AddScoped<IRoomTypeRepository, RoomTypeRepository>();
 builder.Services.AddScoped<IAdminRoomService, AdminRoomService>();
 builder.Services.AddScoped<IAdminRoomTypeService, AdminRoomTypeService>();
 builder.Services.AddScoped<IAdminBookingService, AdminBookingService>();
-builder.Services.AddHostedService<BookingStatusUpdater>();
 
 
 // Infrastructure Services - Unit of Work

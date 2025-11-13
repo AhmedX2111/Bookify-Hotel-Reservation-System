@@ -3,6 +3,7 @@ using Bookify.Application.Business.Interfaces.Data;
 using Bookify.Application.Business.Interfaces.Services;
 using Bookify.Domain.Entities;
 using Bookify.Shared.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Bookify.Application.Business.Services
 {
@@ -373,23 +374,6 @@ namespace Bookify.Application.Business.Services
                 CancellationFee = booking.CancellationFee
             };
         }
-        public async Task UpdateCompletedBookingsAsync(CancellationToken cancellationToken)
-        {
-            var now = DateTime.UtcNow;
-            var expiredBookings = await _bookingRepository.GetAllAsync(
-                b => b.Status == "Confirmed" && b.CheckOutDate < now, cancellationToken);
-
-            foreach (var booking in expiredBookings)
-            {
-                booking.Status = "Completed";
-                var room = await _roomRepository.GetByIdAsync(booking.RoomId, cancellationToken);
-                if (room != null)
-                    room.IsAvailable = true;
-            }
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-
         #endregion
 
         #region Private helper methods
@@ -416,6 +400,6 @@ namespace Bookify.Application.Business.Services
             return booking.Status == "Pending" ||
                    booking.Status == "Confirmed";
         }
-        #endregion
     }
+    #endregion
 }

@@ -1,4 +1,11 @@
-﻿using Bookify.Application.Business.Dtos.Bookings;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Bookify.Application.Business.Dtos.Bookings;
+using Bookify.Domain.Entities;
+
+
 
 namespace Bookify.Application.Business.Interfaces.Services
 {
@@ -96,7 +103,6 @@ namespace Bookify.Application.Business.Interfaces.Services
         Task<BookingStatusInfo> GetBookingStatusAsync(int id, string userId, CancellationToken cancellationToken = default);
 
         Task<IEnumerable<BookingDto>> GetUserBookingsAsync(string userId, CancellationToken cancellationToken);
-        Task UpdateCompletedBookingsAsync(CancellationToken cancellationToken);
 
     }
 

@@ -164,12 +164,18 @@ builder.Services.AddScoped<IUserService, UserService>();
 
 // Session State Configuration (for reservation cart)
 builder.Services.AddDistributedMemoryCache();
+
+
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.Name = "SessionId";
     options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.None; // ⚠️ IMPORTANT for CORS
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS only
 });
+
+
 
 builder.Services.AddHostedService<DatabaseSeeder>();
 
@@ -180,14 +186,16 @@ builder.Services.AddScoped<IBookfiyDbContext>(provider =>
 // Add CORS services
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Frontend", policy =>
+    options.AddPolicy("AllowLocalhost", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        policy.WithOrigins("http://localhost:4200", "https://localhost:4200")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // ⚠️ CRITICAL - allows session cookies
     });
 });
+
+
 
 builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(context.Configuration));
 
@@ -216,15 +224,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("Frontend");
+//app.UseCors("Frontend");
+app.UseCors("AllowLocalhost");
 
 app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 
 // Session middleware (must be before UseRouting/UseEndpoints)
-app.UseSession();
 app.UseRouting();
+app.UseSession();
 // Authentication & Authorization middleware
 app.UseAuthentication();
 app.UseAuthorization();

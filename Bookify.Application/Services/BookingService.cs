@@ -373,21 +373,72 @@ namespace Bookify.Application.Business.Services
         }
 
 
+        //public async Task<string> ProcessPaymentAsync(decimal amount, string paymentMethodId)
+        //{
+        //    var options = new PaymentIntentCreateOptions
+        //    {
+        //        Amount = (long)(amount * 100),  // Convert to cents
+        //        Currency = "usd",
+        //        PaymentMethod = paymentMethodId,
+        //        Confirm = true,
+        //        AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions { Enabled = true }
+        //    };
+        //    var service = new PaymentIntentService();
+        //    var intent = await service.CreateAsync(options);
+        //    return intent.Id;  // Return PaymentIntentId for storage
+        //}
+
+
         public async Task<string> ProcessPaymentAsync(decimal amount, string paymentMethodId)
         {
-            var options = new PaymentIntentCreateOptions
+            try
             {
-                Amount = (long)(amount * 100),  // Convert to cents
-                Currency = "usd",
-                PaymentMethod = paymentMethodId,
-                Confirm = true,
-                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions { Enabled = true }
-            };
-            var service = new PaymentIntentService();
-            var intent = await service.CreateAsync(options);
-            return intent.Id;  // Return PaymentIntentId for storage
+                var options = new PaymentIntentCreateOptions
+                {
+                    Amount = (long)(amount * 100), // Convert to cents
+                    Currency = "usd",
+                    PaymentMethod = paymentMethodId,
+                    Confirm = true,
+                    AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
+                    {
+                        Enabled = false, // Disable automatic payment methods
+                    },
+                    PaymentMethodTypes = new List<string> { "card" }, // Explicitly only allow cards
+                    CaptureMethod = "automatic"
+                };
+
+                var service = new PaymentIntentService();
+                var paymentIntent = await service.CreateAsync(options);
+
+                // Check payment intent status
+                if (paymentIntent.Status == "succeeded")
+                {
+                    _logger.LogInformation("Payment succeeded. PaymentIntentId: {PaymentIntentId}", paymentIntent.Id);
+                    return paymentIntent.Id;
+                }
+                else if (paymentIntent.Status == "requires_action")
+                {
+                    throw new ValidationException("Payment requires additional authentication. Please try again.");
+                }
+                else if (paymentIntent.Status == "requires_payment_method")
+                {
+                    throw new ValidationException("Payment failed. Please try a different payment method.");
+                }
+                else
+                {
+                    throw new ValidationException($"Payment processing failed with status: {paymentIntent.Status}");
+                }
+            }
+            catch (StripeException ex)
+            {
+                _logger.LogError(ex, "Stripe error processing payment. Amount: {Amount}, PaymentMethodId: {PaymentMethodId}",
+                    amount, paymentMethodId);
+
+                // Provide more user-friendly error messages
+                var errorMessage = ex.StripeError?.Message ?? ex.Message;
+                throw new ValidationException($"Payment processing failed: {errorMessage}");
+            }
         }
-    
 
         /// <summary>
         /// Creates a booking and processes payment. Uses Unit of Work pattern for atomic database operations.

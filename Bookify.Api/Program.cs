@@ -4,6 +4,7 @@ using Bookify.Application.Business.Interfaces.Data;
 using Bookify.Application.Business.Interfaces.Services;
 using Bookify.Application.Business.Mappings;
 using Bookify.Application.Business.Services;
+using Bookify.Application.Business.Services.Background;
 using Bookify.Domain.Entities;
 using Bookify.Infrastructure.Data;
 using Bookify.Infrastructure.Data.Data.AdminServices;
@@ -21,7 +22,13 @@ using Serilog;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -147,11 +154,13 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IRoomRepository, RoomRepository>();
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<IRoomTypeRepository, RoomTypeRepository>();
+builder.Services.AddScoped<IBookingService, BookingService>();
 
 //admin services
 builder.Services.AddScoped<IAdminRoomService, AdminRoomService>();
 builder.Services.AddScoped<IAdminRoomTypeService, AdminRoomTypeService>();
 builder.Services.AddScoped<IAdminBookingService, AdminBookingService>();
+builder.Services.AddHostedService<BookingStatusUpdater>();
 
 
 // Infrastructure Services - Unit of Work
@@ -230,6 +239,7 @@ app.UseCors("AllowLocalhost");
 app.UseStaticFiles();
 
 app.UseHttpsRedirection();
+app.UseSession();
 
 // Session middleware (must be before UseRouting/UseEndpoints)
 app.UseRouting();

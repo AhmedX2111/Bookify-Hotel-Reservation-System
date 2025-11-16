@@ -4,24 +4,33 @@ using Bookify.Application.Business.Interfaces.Services;
 using Bookify.Shared.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.Text.Json;
+using Stripe;
+using NotFoundException = Bookify.Shared.Exceptions.NotFoundException;
+using ValidationException = Bookify.Shared.Exceptions.ValidationException;
+using CartRequestDto = Bookify.Application.Business.Dtos.Bookings.CartRequestDto;
 
 namespace Bookify.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-   // [Authorize]
     public class BookingsController : ControllerBase
     {
         private readonly IBookingService _bookingService;
         private readonly IRoomRepository _roomRepository;
+        private readonly ILogger<BookingsController> _logger;
         private const string CartSessionKey = "ReservationCart";
 
-        public BookingsController(IBookingService bookingService, IRoomRepository roomRepository)
+        public BookingsController(
+            IBookingService bookingService,
+            IRoomRepository roomRepository,
+            ILogger<BookingsController> logger)
         {
             _bookingService = bookingService;
             _roomRepository = roomRepository;
+            _logger = logger;
         }
 
         // ----------------------------------------------------
@@ -29,30 +38,30 @@ namespace Bookify.Api.Controllers
         // ----------------------------------------------------
 
         [HttpPost("cart")]
-        public async Task<IActionResult> AddToCart([FromBody] BookingCreateDto bookingDetails)
+        public async Task<IActionResult> AddToCart([FromBody] CartRequestDto cartRequest)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             // Validate dates
-            var numberOfNights = (int)(bookingDetails.CheckOutDate - bookingDetails.CheckInDate).TotalDays;
+            var numberOfNights = (int)(cartRequest.CheckOutDate - cartRequest.CheckInDate).TotalDays;
             if (numberOfNights <= 0)
                 return BadRequest("Check-out date must be later than check-in date.");
 
             // Check if dates are in the future
-            if (bookingDetails.CheckInDate.Date <= DateTime.Today)
+            if (cartRequest.CheckInDate.Date <= DateTime.Today)
                 return BadRequest("Check-in date must be in the future.");
 
             // Validate room availability and existence
-            var room = await _roomRepository.GetByIdAsync(bookingDetails.RoomId);
+            var room = await _roomRepository.GetByIdAsync(cartRequest.RoomId);
             if (room == null)
-                return NotFound($"Room with ID {bookingDetails.RoomId} not found.");
+                return NotFound($"Room with ID {cartRequest.RoomId} not found.");
 
             // Check room availability for the selected dates
             var isAvailable = await _bookingService.IsRoomAvailableAsync(
-                bookingDetails.RoomId,
-                bookingDetails.CheckInDate,
-                bookingDetails.CheckOutDate);
+                cartRequest.RoomId,
+                cartRequest.CheckInDate,
+                cartRequest.CheckOutDate);
 
             if (!isAvailable)
                 return BadRequest("Room is not available for the selected dates.");
@@ -65,8 +74,8 @@ namespace Bookify.Api.Controllers
                 RoomNumber = room.RoomNumber,
                 RoomTypeName = room.RoomType?.Name ?? "N/A",
                 PricePerNight = pricePerNight,
-                CheckInDate = bookingDetails.CheckInDate,
-                CheckOutDate = bookingDetails.CheckOutDate,
+                CheckInDate = cartRequest.CheckInDate,
+                CheckOutDate = cartRequest.CheckOutDate,
                 NumberOfNights = numberOfNights,
                 TotalCost = numberOfNights * pricePerNight
             };
@@ -106,31 +115,48 @@ namespace Bookify.Api.Controllers
         // ----------------------------------------------------
 
         [HttpPost("confirm")]
-        public async Task<ActionResult<BookingDto>> ConfirmBookingFromCart(CancellationToken cancellationToken)
+        //[Authorize]
+        public async Task<ActionResult<BookingDto>> ConfirmBookingFromCart(
+            [FromBody] BookingConfirmationDto paymentDto,
+            CancellationToken cancellationToken)
         {
-            // Step 1: Validate cart exists
+            // Step 1: Validate user authentication
+            var userId = "022f2748-9ea3-4fa7-a82f-f1ad74147f94";//just static id for test bec this not work => //User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                //    return Unauthorized("User is not authenticated correctly.");
+            }
+
+            // Step 2: Validate cart exists
             var cartJson = HttpContext.Session.GetString(CartSessionKey);
             if (string.IsNullOrEmpty(cartJson))
             {
                 return BadRequest(new { Message = "Cannot confirm booking. Cart is empty." });
             }
 
-            // Step 2: Validate user authentication
-            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            //if (string.IsNullOrEmpty(userId))
-            //{
-            //    return Unauthorized("User is not authenticated correctly.");
-            //}
+            // Step 3: Model validation (provide detailed ModelState errors)
+            if (!ModelState.IsValid)
+            {
+                // Return ModelState dictionary for clients to see which field failed
+                return BadRequest(ModelState);
+            }
+
+            // Validate payment information
+            if (paymentDto == null || string.IsNullOrWhiteSpace(paymentDto.PaymentMethodId))
+            {
+                return BadRequest(new { Message = "Payment method ID is required." });
+            }
 
             var cartItem = JsonSerializer.Deserialize<CartItemDto>(cartJson);
 
             try
             {
-                // Step 3: Revalidate availability before confirmation
+                // Step 4: Revalidate availability before confirmation
                 var isAvailable = await _bookingService.IsRoomAvailableAsync(
                     cartItem.RoomId,
                     cartItem.CheckInDate,
-                    cartItem.CheckOutDate);
+                    cartItem.CheckOutDate,
+                    cancellationToken);
 
                 if (!isAvailable)
                 {
@@ -139,7 +165,7 @@ namespace Bookify.Api.Controllers
                     return BadRequest("Room is no longer available for the selected dates. Please choose different dates.");
                 }
 
-                // Step 4: Convert cart to booking
+                // Step 5: Convert cart to booking DTO
                 var bookingCreateDto = new BookingCreateDto
                 {
                     RoomId = cartItem.RoomId,
@@ -147,16 +173,20 @@ namespace Bookify.Api.Controllers
                     CheckOutDate = cartItem.CheckOutDate
                 };
 
-                // Step 5: Create booking (status will be Pending initially)
-                var bookingDto = await _bookingService.CreateBookingAsync("325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", bookingCreateDto, cancellationToken);
+                // Step 6: Create booking with payment (atomic operation using Unit of Work)
+                var bookingDto = await _bookingService.CreateBookingWithPaymentAsync(
+                    userId,
+                    bookingCreateDto,
+                    paymentDto.PaymentMethodId,
+                    cancellationToken);
 
-                // Step 6: Clear cart after successful booking
+                // Step 7: Clear cart after successful booking
                 HttpContext.Session.Remove(CartSessionKey);
 
-                // Step 7: Return booking confirmation
+                // Step 8: Return booking confirmation
                 return CreatedAtAction(nameof(GetBookingById), new { id = bookingDto.Id }, new
                 {
-                    Message = "Booking created successfully! It is now pending confirmation.",
+                    Message = "Booking created and payment processed successfully! It is now pending admin confirmation.",
                     Booking = bookingDto,
                     NextSteps = new[]
                     {
@@ -168,18 +198,23 @@ namespace Bookify.Api.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { Message = ex.Message });
+                return NotFound(new { Message = $"Booking not found: {ex.Message}" });
             }
             catch (ValidationException ex)
             {
-                return BadRequest(new { Message = ex.Message });
+                return BadRequest(new { Message = $"Validation error: {ex.Message}" });
+            }
+            catch (StripeException ex)
+            {
+                _logger.LogError(ex, "Stripe error confirming booking for UserId: {UserId}", userId);
+                return BadRequest(new { Message = $"Payment processing failed: {ex.Message}" });
             }
             catch (Exception ex)
             {
-                // Log the exception
+                _logger.LogError(ex, "Unexpected error confirming booking for UserId: {UserId}", userId);
                 return StatusCode(500, new
                 {
-                    Message = "An error occurred while confirming the booking.",
+                    Message = "An unexpected error occurred while confirming the booking.",
                     Details = ex.Message
                 });
             }
@@ -189,31 +224,38 @@ namespace Bookify.Api.Controllers
         // 3. Enhanced Booking Management with Status Flow
         // ----------------------------------------------------
 
-        [HttpGet("Bookings")]
+        [HttpGet]
+        //[Authorize]
         public async Task<ActionResult<IEnumerable<BookingDto>>> GetUserBookings(CancellationToken cancellationToken)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            //if (string.IsNullOrEmpty(userId))
-            //{
-            //    return Unauthorized();
-            //}
+            var userId = "022f2748-9ea3-4fa7-a82f-f1ad74147f94";//just static id for test bec this not work => //User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var bookings = await _bookingService.GetUserBookingsAsync("325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", cancellationToken);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var bookings = await _bookingService.GetUserBookingsAsync(userId, cancellationToken);
             return Ok(bookings);
         }
 
         [HttpGet("{id}")]
+        //[Authorize]
         public async Task<ActionResult<BookingDto>> GetBookingById(int id, CancellationToken cancellationToken)
         {
-            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            //if (string.IsNullOrEmpty(userId))
-            //{
-            //    return Unauthorized();
-            //}
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
 
             try
             {
-                var booking = await _bookingService.GetBookingByIdAsync(id, "325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", cancellationToken);
+                var booking = await _bookingService.GetBookingByIdAsync(id, userId, cancellationToken);
+                if (booking == null)
+                {
+                    return NotFound(new { Message = $"Booking with ID {id} not found." });
+                }
                 return Ok(booking);
             }
             catch (NotFoundException)
@@ -231,13 +273,14 @@ namespace Bookify.Api.Controllers
         // ----------------------------------------------------
 
         [HttpPut("{id}/cancel")]
+        //[Authorize]
         public async Task<IActionResult> CancelBooking(int id, [FromBody] CancelBookingRequest cancelRequest, CancellationToken cancellationToken)
         {
-            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            //if (string.IsNullOrEmpty(userId))
-            //{
-            //    return Unauthorized();
-            //}
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
 
             try
             {
@@ -248,7 +291,7 @@ namespace Bookify.Api.Controllers
                 }
 
                 // Step 2: Attempt cancellation
-                var result = await _bookingService.CancelBookingAsync(id, "325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", cancelRequest.Reason, cancellationToken);
+                var result = await _bookingService.CancelBookingAsync(id, userId, cancelRequest.Reason, cancellationToken);
 
                 if (result.IsSuccess)
                 {
@@ -361,17 +404,18 @@ namespace Bookify.Api.Controllers
         }
 
         [HttpGet("{id}/status")]
+        //  [Authorize]
         public async Task<IActionResult> GetBookingStatus(int id, CancellationToken cancellationToken)
         {
-            //var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            //if (string.IsNullOrEmpty(userId))
-            //{
-            //    return Unauthorized();
-            //}
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
 
             try
             {
-                var statusInfo = await _bookingService.GetBookingStatusAsync(id, "325c7e9a-9449-4b0a-92cb-ded1d7fc66c0", cancellationToken);
+                var statusInfo = await _bookingService.GetBookingStatusAsync(id, userId, cancellationToken);
                 return Ok(statusInfo);
             }
             catch (NotFoundException)
@@ -382,6 +426,16 @@ namespace Bookify.Api.Controllers
             {
                 return Forbid("You don't have access to this booking.");
             }
+        }
+        // Note: Payment is now integrated into the confirm endpoint
+        // This endpoint is kept for backward compatibility but is deprecated
+        //[Authorize]
+        [HttpPost("process-payment")]
+        [Obsolete("Use POST /api/bookings/confirm instead. Payment is now integrated into booking confirmation.")]
+        public async Task<IActionResult> ProcessPayment([FromBody] BookingConfirmationDto dto)
+        {
+            var paymentIntentId = await _bookingService.ProcessPaymentAsync(dto.TotalAmount, dto.PaymentMethodId);
+            return Ok(new { PaymentIntentId = paymentIntentId });
         }
     }
 

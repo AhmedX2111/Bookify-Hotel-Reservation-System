@@ -37,6 +37,10 @@ namespace Bookify.Infrastructure.Data.Data.Context
                 .Property(b => b.TotalCost)
                 .HasPrecision(18, 2);
 
+            // New: Convert BookingStatus enum to string for DB storage
+            builder.Entity<Booking>()
+                .Property(b => b.Status)
+                .HasConversion<string>();
         }
 
     }

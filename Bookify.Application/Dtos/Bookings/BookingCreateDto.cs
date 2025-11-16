@@ -14,13 +14,12 @@ namespace Bookify.Application.Business.Dtos.Bookings
         [Required(ErrorMessage = "CheckOutDate is required.")]
         public DateTime CheckOutDate { get; set; }
 
-        [Required(ErrorMessage = "Guest name is required.")]
+        // Customer info is optional - will be retrieved from authenticated user if not provided
         [StringLength(100, ErrorMessage = "Guest name cannot exceed 100 characters.")]
-        public string CustomerName { get; set; } = string.Empty;
+        public string? CustomerName { get; set; }
 
-        [Required(ErrorMessage = "Guest email is required.")]
         [EmailAddress(ErrorMessage = "Invalid email format.")]
-        public string CustomerEmail { get; set; } = string.Empty;
+        public string? CustomerEmail { get; set; }
 
         // For now, we rely on the service to calculate TotalCost and NumberOfNights
     }

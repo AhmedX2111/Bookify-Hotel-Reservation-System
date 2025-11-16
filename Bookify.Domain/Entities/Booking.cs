@@ -15,6 +15,7 @@ namespace Bookify.Domain.Entities
 
         [Required]
         public string Status { get; set; } = "Pending"; // Pending, Confirmed, Cancelled, Completed
+        public string? PaymentIntentId { get; set; }  // Stripe PaymentIntent ID (nullable until payment is processed)
 
         public DateTime? ConfirmedAt { get; set; }
         public DateTime? CancelledAt { get; set; }

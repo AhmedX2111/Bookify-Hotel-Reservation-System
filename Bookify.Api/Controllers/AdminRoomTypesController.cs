@@ -7,7 +7,7 @@ namespace Bookify.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
 
     public class AdminRoomTypesController : ControllerBase
     {

@@ -12,11 +12,13 @@ using Bookify.Infrastructure.Data.Data.Context;
 using Bookify.Infrastructure.Data.Data.Repositories;
 using Bookify.Infrastructure.Data.Data.UnitOfWork;
 using Bookify.Infrastructure.Data.Services;
+using Bookify.Api.HealthChecks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +32,14 @@ builder.Services.AddSession(options =>
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Allow controllers to receive model state and return detailed validation errors
+// explicitly instead of the automatic 400 produced by [ApiController]. This
+// makes it easier to log and return enriched errors during local testing.
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    options.SuppressModelStateInvalidFilter = true;
+});
 
 // Swagger/OpenAPI configuration
 builder.Services.AddSwaggerGen(c =>
@@ -67,6 +77,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<BookifyDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+// Health Checks - Database connectivity check
+builder.Services.AddHealthChecks()
+    .AddCheck<Bookify.Api.HealthChecks.DatabaseHealthCheck>("database");
+
 // ASP.NET Identity Configuration
 builder.Services.AddIdentityCore<User>(options =>
 {
@@ -87,25 +101,37 @@ builder.Services.AddIdentityCore<User>(options =>
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+// Program.cs - JWT Configuration
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ClockSkew = TimeSpan.Zero
-    };
-});
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        };
+
+        // For development - easier debugging
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine("Token validated successfully");
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 // Application Services
 builder.Services.AddMediatR(cfg =>
@@ -142,6 +168,23 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Infrastructure Services - Custom Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IUserService, UserService>();
+
+// Session State Configuration (for reservation cart)
+builder.Services.AddDistributedMemoryCache();
+
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.Name = "SessionId";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.None; // ⚠️ IMPORTANT for CORS
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS only
+});
+
+
 
 builder.Services.AddHostedService<DatabaseSeeder>();
 
@@ -152,14 +195,34 @@ builder.Services.AddScoped<IBookfiyDbContext>(provider =>
 // Add CORS services
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Frontend", policy =>
+    options.AddPolicy("AllowLocalhost", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        policy.WithOrigins("http://localhost:4200", "https://localhost:4200")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // ⚠️ CRITICAL - allows session cookies
     });
 });
+
+
+
+builder.Host.UseSerilog((context, config) => config.ReadFrom.Configuration(context.Configuration));
+
+var stripeSecretFromConfig = builder.Configuration["Stripe:SecretKey"];
+var stripePublishableFromConfig = builder.Configuration["Stripe:PublishableKey"];
+
+// For local testing, you can provide a default from environment variables
+var stripeSecret = !string.IsNullOrWhiteSpace(stripeSecretFromConfig)
+    ? stripeSecretFromConfig
+    : Environment.GetEnvironmentVariable("STRIPE_TEST_SECRET");
+
+var stripePublishable = !string.IsNullOrWhiteSpace(stripePublishableFromConfig)
+    ? stripePublishableFromConfig
+    : Environment.GetEnvironmentVariable("STRIPE_TEST_PUBLISHABLE");
+
+Stripe.StripeConfiguration.ApiKey = stripeSecret;
+builder.Configuration["Stripe:PublishableKey"] = stripePublishable;
+
 
 var app = builder.Build();
 
@@ -170,18 +233,24 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("Frontend");
+//app.UseCors("Frontend");
+app.UseCors("AllowLocalhost");
 
 app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 app.UseSession();
 
+// Session middleware (must be before UseRouting/UseEndpoints)
+app.UseRouting();
+app.UseSession();
 // Authentication & Authorization middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
+// Health Check Endpoint
+app.MapHealthChecks("/health");
 
 app.Run();

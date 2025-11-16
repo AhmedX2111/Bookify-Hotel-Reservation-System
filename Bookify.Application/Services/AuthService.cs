@@ -44,8 +44,14 @@ namespace Bookify.Infrastructure.Data.Services
 				};
 			}
 
+			// Set default role if not provided
+			if (string.IsNullOrWhiteSpace(request.Role))
+			{
+				request.Role = "Customer";
+			}
+
 			// Validate role
-			if (string.IsNullOrWhiteSpace(request.Role) || !_allowedRoles.Contains(request.Role))
+			if (!_allowedRoles.Contains(request.Role))
 			{
 				return new AuthResponseDto
 				{

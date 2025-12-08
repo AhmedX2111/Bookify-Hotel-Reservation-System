@@ -3,6 +3,7 @@ using Bookify.Application.Business.Interfaces.Data;
 using Bookify.Application.Business.Interfaces.Services;
 using Bookify.Domain.Entities;
 using Bookify.Shared.Exceptions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Stripe;
 
@@ -14,8 +15,7 @@ namespace Bookify.Application.Business.Services
         private readonly IBookingRepository _bookingRepository;
         private readonly IRoomRepository _roomRepository;
         private readonly ILogger<BookingService> _logger;
-
-        public BookingService(
+        public BookingService(IConfiguration configuration,
             IUnitOfWork unitOfWork, 
             IBookingRepository bookingRepository, 
             IRoomRepository roomRepository,
@@ -25,6 +25,7 @@ namespace Bookify.Application.Business.Services
             _bookingRepository = bookingRepository;
             _roomRepository = roomRepository;
             _logger = logger;
+            Stripe.StripeConfiguration.ApiKey = configuration["Stripe:SecretKey"];
         }
 
         // Implement all required interface methods

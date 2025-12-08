@@ -38,7 +38,7 @@ namespace Bookify.Api.Controllers
         // ----------------------------------------------------
 
         [HttpPost("cart")]
-        public async Task<IActionResult> AddToCart([FromBody] CartRequestDto cartRequest)
+        public async Task<IActionResult> AddToCart( CartRequestDto cartRequest)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -115,16 +115,18 @@ namespace Bookify.Api.Controllers
         // ----------------------------------------------------
 
         [HttpPost("confirm")]
-        //[Authorize]
+        [Authorize]
         public async Task<ActionResult<BookingDto>> ConfirmBookingFromCart(
             [FromBody] BookingConfirmationDto paymentDto,
             CancellationToken cancellationToken)
         {
             // Step 1: Validate user authentication
-            var userId = "022f2748-9ea3-4fa7-a82f-f1ad74147f94";//just static id for test bec this not work => //User.FindFirstValue(ClaimTypes.NameIdentifier);
+            //var userId = "022f2748-9ea3-4fa7-a82f-f1ad74147f94";//just static id for test bec this not work => //User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue("userId");
+
             if (string.IsNullOrEmpty(userId))
             {
-                //    return Unauthorized("User is not authenticated correctly.");
+                   return Unauthorized("User is not authenticated correctly.");
             }
 
             // Step 2: Validate cart exists
@@ -170,7 +172,9 @@ namespace Bookify.Api.Controllers
                 {
                     RoomId = cartItem.RoomId,
                     CheckInDate = cartItem.CheckInDate,
-                    CheckOutDate = cartItem.CheckOutDate
+                    CheckOutDate = cartItem.CheckOutDate,
+                    CustomerEmail = User.FindFirstValue(ClaimTypes.Email),
+                    CustomerName = User.FindFirstValue(ClaimTypes.NameIdentifier)
                 };
 
                 // Step 6: Create booking with payment (atomic operation using Unit of Work)
@@ -225,11 +229,11 @@ namespace Bookify.Api.Controllers
         // ----------------------------------------------------
 
         [HttpGet]
-        //[Authorize]
+        [Authorize]
         public async Task<ActionResult<IEnumerable<BookingDto>>> GetUserBookings(CancellationToken cancellationToken)
         {
-            var userId = "022f2748-9ea3-4fa7-a82f-f1ad74147f94";//just static id for test bec this not work => //User.FindFirstValue(ClaimTypes.NameIdentifier);
-
+            // var userId = "022f2748-9ea3-4fa7-a82f-f1ad74147f94";//just static id for test bec this not work => //User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized();
@@ -243,7 +247,7 @@ namespace Bookify.Api.Controllers
         //[Authorize]
         public async Task<ActionResult<BookingDto>> GetBookingById(int id, CancellationToken cancellationToken)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized();
@@ -276,7 +280,7 @@ namespace Bookify.Api.Controllers
         //[Authorize]
         public async Task<IActionResult> CancelBooking(int id, [FromBody] CancelBookingRequest cancelRequest, CancellationToken cancellationToken)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized();
@@ -407,7 +411,7 @@ namespace Bookify.Api.Controllers
         //  [Authorize]
         public async Task<IActionResult> GetBookingStatus(int id, CancellationToken cancellationToken)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized();

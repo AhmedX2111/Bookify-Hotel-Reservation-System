@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Bookify.Infrastructure.Data.Data.UnitOfWork
 {
-	public class UnitOfWork : IUnitOfWork, IDisposable
+	public class UnitOfWork : IUnitOfWork//, IDisposable
 	{
 		private readonly BookifyDbContext _context;
 
@@ -34,9 +34,9 @@ namespace Bookify.Infrastructure.Data.Data.UnitOfWork
 			return await _context.SaveChangesAsync(cancellationToken);
 		}
 
-		public void Dispose()
-		{
-			_context?.Dispose();
-		}
+		//public void Dispose()
+		//{
+		//	_context?.Dispose();
+		//}
 	}
 }

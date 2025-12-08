@@ -225,11 +225,15 @@ namespace Bookify.Infrastructure.Data.Services
 			{
 				[JwtRegisteredClaimNames.Sub] = user.UserName ?? user.Email ?? string.Empty,
 				[JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString(),
-				[ClaimTypes.NameIdentifier] = user.Id,
+				//[ClaimTypes.NameIdentifier] = user.Id,
 				[ClaimTypes.Email] = user.Email ?? string.Empty,
 				["firstName"] = user.FirstName ?? string.Empty,
-				["lastName"] = user.LastName ?? string.Empty
-			};
+				["lastName"] = user.LastName ?? string.Empty,
+                //[JwtRegisteredClaimNames.Sub] = user.Id,
+                ["userId"] = user.Id
+
+
+            };
 
 			// Add roles to claims
 			var userRoles = await _userManager.GetRolesAsync(user);
@@ -252,14 +256,14 @@ namespace Bookify.Infrastructure.Data.Services
 			return tokenHandler.CreateToken(tokenDescriptor);
 		}
 
-		private double GetJwtExpireHours()
-		{
-			var expireHoursString = _configuration["Jwt:ExpireHours"];
-			if (string.IsNullOrEmpty(expireHoursString) || !double.TryParse(expireHoursString, out double expireHours))
-			{
-				return 2.0; // Default to 2 hours if not configured
-			}
-			return expireHours;
-		}
-	}	
+        private double GetJwtExpireHours()
+        {
+            var expireHoursString = _configuration["Jwt:ExpireHours"];
+            if (string.IsNullOrEmpty(expireHoursString) || !double.TryParse(expireHoursString, out double expireHours))
+            {
+                return 48.0; 
+            }
+            return expireHours;
+        }
+    }	
 }

@@ -23,7 +23,6 @@ namespace Bookify.Api.Controllers
         private readonly ILogger<BookingsController> _logger;
         private const string CartSessionKey = "ReservationCart";
 
-
         public BookingsController(
             IBookingService bookingService,
             IRoomRepository roomRepository,
